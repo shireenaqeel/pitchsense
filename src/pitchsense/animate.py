@@ -15,16 +15,21 @@ DOCS_DIR = Path(__file__).resolve().parents[2] / "docs"
 BALL_COLOR = "#ffd500"
 
 
-def animate_sequence(frames, save_path: Path, fps: int = 20, hold_frames: int = 20) -> Path:
+def animate_sequence(frames, save_path: Path, fps: int = 20, hold_frames: int = 20,
+                     pattern: str | None = None) -> Path:
     """Render interpolated ball frames to a GIF at ``save_path``.
 
     ``hold_frames`` extra copies of the final frame keep the animation paused on
-    the finish so the outcome is readable before it loops.
+    the finish so the outcome is readable before it loops. ``pattern`` is the
+    tactical pattern the classifier assigned to the whole possession; when given
+    it is shown as a fixed caption above the per-action title.
     """
     frames = list(frames) + [frames[-1]] * hold_frames if frames else []
 
     fig, ax = plt.subplots(figsize=(12, 8))
     draw_pitch(ax)
+    if pattern:
+        fig.suptitle(f"Tactical pattern: {pattern}", fontsize=14, fontweight="bold", color="#222222")
     (trail,) = ax.plot([], [], color=BALL_COLOR, lw=2.5, alpha=0.8, zorder=5)
     ball = ax.scatter([], [], c="white", s=150, edgecolors="black", linewidths=1.5, zorder=6)
     title = ax.set_title("", fontsize=13, color="#222222")
@@ -45,6 +50,24 @@ def animate_sequence(frames, save_path: Path, fps: int = 20, hold_frames: int = 
     return save_path
 
 
+def possession_pattern(events, possession) -> str | None:
+    """Tactical pattern the trained classifier assigns to a possession.
+
+    Returns ``None`` if the classifier has not been trained yet (its model file
+    is absent) or the possession is too short to describe, so the replay still
+    renders without it.
+    """
+    from pitchsense.possessions import possession_features
+    from pitchsense.tactics import MODEL_PATH, load_classifier, predict_pattern
+
+    if not MODEL_PATH.exists():
+        return None
+    feats = possession_features(events, possession)
+    if feats is None:
+        return None
+    return predict_pattern(load_classifier(), feats)
+
+
 def render_example_sequence(save_path: Path | None = None) -> Path:
     """Fetch a goal build-up, interpolate it, and save the animated replay."""
     from statsbombpy import sb
@@ -62,7 +85,7 @@ def render_example_sequence(save_path: Path | None = None) -> Path:
 
     waypoints = build_waypoints(chain)
     frames = interpolate_track(waypoints, frames_per_segment=14)
-    animate_sequence(frames, save_path)
+    animate_sequence(frames, save_path, pattern=possession_pattern(events, possession))
     return save_path
 
 

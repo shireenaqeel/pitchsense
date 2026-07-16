@@ -78,6 +78,8 @@ src/pitchsense/
   animate.py    # render a possession as an animated replay (GIF)
   quiz.py       # scoring and explanation for predict-and-compare
   concepts.py   # concept tagging, per-concept progress, adaptive shot selection
+  possessions.py # possession -> tactical feature vector (pure, tested)
+  tactics.py    # cluster possessions into tactical patterns (k-means)
 streamlit_app.py  # interactive quiz UI
 tests/          # unit tests for the geometry, features, and rendering
 data/           # cached raw data (git-ignored)
@@ -108,7 +110,9 @@ current action and player.
 ![Example replay](docs/example_sequence.gif)
 
 The replay above is a full goal build-up. Regenerate it with
-`python -m pitchsense.animate`.
+`python -m pitchsense.animate`. When the tactical classifier (below) has been
+trained, the replay is captioned with the pattern it detects for the possession
+— the example above reads *Counter-attack / direct*.
 
 ## Interactive quiz
 
@@ -135,6 +139,46 @@ practice concentrates where your intuition is furthest from the model's. The
 tagging, progress tracking, and weighted selection are pure functions in
 `concepts.py`, kept free of any UI so they can be unit tested.
 
+## Tactical pattern classifier
+
+Beyond single shots, PitchSense classifies whole **possessions** by *how* the
+ball was moved. StatsBomb has no ground-truth tactical labels, so this is
+unsupervised: each possession is reduced to shape-and-tempo features and the
+possessions are grouped with k-means, then the discovered clusters are named by
+inspecting their centroids. The labels are an interpretation of the clusters,
+not taught targets — the honest framing for an unsupervised model.
+
+Per possession (`possessions.py`, pure and tested) we measure duration, number
+of passes, how far and how directly it moved upfield (`net_forward`,
+`directness`), how fast (`forward_speed`), its lateral spread, where it started,
+and whether it ended in a shot. Possessions with fewer than three on-ball
+actions are dropped as too short to carry a pattern.
+
+Trained on all 64 World Cup 2018 matches (**8,307 possessions**, k=3, silhouette
+**0.26**), the three clusters map cleanly onto the archetypes the project
+targets:
+
+| Pattern | Share | Passes | Duration | Upfield | Directness | Speed | Ends in shot |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| **Counter-attack / direct** | 3,573 | 3.8 | 10.9s | 54.8y | 0.52 | 6.7 y/s | 12% |
+| **Patient build-up** | 1,790 | 15.4 | 50.5s | 55.9y | 0.15 | 1.3 y/s | 22% |
+| **Quick regain / transition** | 2,944 | 5.3 | 15.5s | 10.9y | 0.07 | 0.7 y/s | 14% |
+
+The clusters are genuinely distinct and readable: counter-attacks are short,
+fast, and strike straight at goal; build-ups string together ~15 patient passes
+over ~50 seconds, cover the most width, and produce the most shots; the third
+group starts highest up the pitch (average start ~74 of 120 yards) and makes
+little further ground — balls won high and used quickly. The silhouette of 0.26
+is modest, as expected for real football possessions that overlap rather than
+fall into clean islands; the value is reported so the k=3 choice can be
+sanity-checked, and the cluster naming is a deterministic, unit-tested ranking of
+the centroids rather than a hand-placed guess.
+
+The model and a full cluster summary are saved to `models/tactics_kmeans.joblib`
+and `models/tactics_metrics.json` on every training run, and the animated replay
+is captioned with the pattern the classifier assigns to the possession being
+shown.
+
 ## Setup
 
 Requires Python 3.11+.
@@ -157,6 +201,9 @@ PYTHONPATH=src python -m pitchsense.viz
 
 # Render an animated replay of a goal build-up to docs/example_sequence.gif
 PYTHONPATH=src python -m pitchsense.animate
+
+# Cluster possessions into tactical patterns and print the cluster summary
+PYTHONPATH=src python -m pitchsense.tactics
 
 # Launch the interactive quiz
 streamlit run streamlit_app.py
@@ -184,6 +231,12 @@ pytest
   and the standard-chance fallback), progress accumulation and per-concept
   averages, weighting weak and unseen concepts above strong ones, and that the
   weighted shot selection is valid and biases toward the neediest shots.
+- Tactical patterns: possession feature engineering (forward progress, duration,
+  path length and directness, the same-second speed guard, opponent-touch and
+  short-possession filtering, frame assembly and tagging) and the cluster
+  labeller (relative ranking of centroids onto the archetypes, every cluster
+  named once, centroid averaging). The replay's pattern caption degrades
+  gracefully to nothing when the classifier has not been trained.
 
 The Streamlit flow (initial render, guessing, revealing, next shot) is checked
 end-to-end with Streamlit's AppTest harness as a manual smoke test; it needs the
@@ -201,6 +254,9 @@ manually via `python -m pitchsense.train`.
   train/test split with a fixed seed.
 - Freeze-frame geometry is summarised as a single defenders-in-cone count; the
   keeper's position and finer spatial detail aren't used yet.
+- The tactical clusters are unsupervised and unlabelled by nature: their names
+  are a reasonable reading of the centroids, not validated against coached
+  ground truth, and the silhouette (0.26) reflects genuinely overlapping play.
 
 ## Roadmap
 
@@ -211,4 +267,6 @@ manually via `python -m pitchsense.train`.
 4. **Quiz layer**: estimate, compare to the model, explain the gap (Streamlit) — done. **MVP complete.**
 5. **Adaptive difficulty + per-concept progress tracking**: concept tagging,
    per-concept scoring, weak-area-biased shot selection, progress panel — done.
-6. Stretch: tactical pattern classifier, player-role clustering, leaderboard.
+6. Stretch: **tactical pattern classifier** (k-means over possessions, labelled
+   into build-up / counter-attack / regain, wired into the replay) — done.
+   Remaining: player-role clustering, leaderboard.
