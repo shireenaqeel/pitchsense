@@ -77,6 +77,7 @@ src/pitchsense/
   sequences.py  # build an interpolated ball track from a possession
   animate.py    # render a possession as an animated replay (GIF)
   quiz.py       # scoring and explanation for predict-and-compare
+  concepts.py   # concept tagging, per-concept progress, adaptive shot selection
 streamlit_app.py  # interactive quiz UI
 tests/          # unit tests for the geometry, features, and rendering
 data/           # cached raw data (git-ignored)
@@ -121,6 +122,18 @@ stacks up against a model trained on real shots.
 ```bash
 streamlit run streamlit_app.py
 ```
+
+### Adaptive practice
+
+Every shot is tagged with the football concepts it exercises — a header, a
+long-range effort, a one-on-one, a chance struck through a crowded box — derived
+from its features. The quiz keeps a running average of your points per concept
+and biases which shot comes next toward the concepts you estimate worst,
+alongside an exploration nudge so unseen concepts still surface early. A
+"Where you stand" panel shows your per-concept scores, weakest first, so the
+practice concentrates where your intuition is furthest from the model's. The
+tagging, progress tracking, and weighted selection are pure functions in
+`concepts.py`, kept free of any UI so they can be unit tested.
 
 ## Setup
 
@@ -167,6 +180,10 @@ pytest
   possession to the team's on-ball actions.
 - Quiz logic: Brier scoring (including clamping), the model-comparison verdict,
   and the explanation text.
+- Adaptive practice: concept tagging (each threshold, the assist/situation flags,
+  and the standard-chance fallback), progress accumulation and per-concept
+  averages, weighting weak and unseen concepts above strong ones, and that the
+  weighted shot selection is valid and biases toward the neediest shots.
 
 The Streamlit flow (initial render, guessing, revealing, next shot) is checked
 end-to-end with Streamlit's AppTest harness as a manual smoke test; it needs the
@@ -192,5 +209,6 @@ manually via `python -m pitchsense.train`.
 2. **Static pitch visualization** (shot + freeze-frame, annotated with xG) — done.
 3. **Animated replay** of a possession (interpolated ball track) — done.
 4. **Quiz layer**: estimate, compare to the model, explain the gap (Streamlit) — done. **MVP complete.**
-5. Adaptive difficulty + per-concept progress tracking.
+5. **Adaptive difficulty + per-concept progress tracking**: concept tagging,
+   per-concept scoring, weak-area-biased shot selection, progress panel — done.
 6. Stretch: tactical pattern classifier, player-role clustering, leaderboard.
