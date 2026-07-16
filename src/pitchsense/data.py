@@ -24,6 +24,7 @@ SHOT_COLUMNS = [
     "player",
     "minute",
     "location",
+    "shot_end_location",
     "play_pattern",
     "under_pressure",
     "shot_body_part",
