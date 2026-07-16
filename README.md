@@ -76,6 +76,8 @@ src/pitchsense/
   viz.py        # render a shot + its freeze-frame, annotated with model xG
   sequences.py  # build an interpolated ball track from a possession
   animate.py    # render a possession as an animated replay (GIF)
+  quiz.py       # scoring and explanation for predict-and-compare
+streamlit_app.py  # interactive quiz UI
 tests/          # unit tests for the geometry, features, and rendering
 data/           # cached raw data (git-ignored)
 models/         # trained models + metrics (git-ignored)
@@ -107,6 +109,19 @@ current action and player.
 The replay above is a full goal build-up. Regenerate it with
 `python -m pitchsense.animate`.
 
+## Interactive quiz
+
+The pieces above come together in a Streamlit app. It shows a real shot's
+freeze-frame with the outcome hidden, you estimate the chance it scores, and it
+then reveals the actual result, the model's xG, and a plain-language explanation
+of the situation. Your estimates are scored against the outcome with the Brier
+rule and compared to the model's own score, so you can see how your intuition
+stacks up against a model trained on real shots.
+
+```bash
+streamlit run streamlit_app.py
+```
+
 ## Setup
 
 Requires Python 3.11+.
@@ -130,6 +145,9 @@ PYTHONPATH=src python -m pitchsense.viz
 # Render an animated replay of a goal build-up to docs/example_sequence.gif
 PYTHONPATH=src python -m pitchsense.animate
 
+# Launch the interactive quiz
+streamlit run streamlit_app.py
+
 # Run the tests
 pytest
 ```
@@ -147,6 +165,12 @@ pytest
 - Sequence building: end-location selection by event type, waypoint merging of
   touching points, frame interpolation counts/endpoints, and filtering a
   possession to the team's on-ball actions.
+- Quiz logic: Brier scoring (including clamping), the model-comparison verdict,
+  and the explanation text.
+
+The Streamlit flow (initial render, guessing, revealing, next shot) is checked
+end-to-end with Streamlit's AppTest harness as a manual smoke test; it needs the
+data cache present and so is run by hand rather than in the pytest suite.
 
 Not yet tested end-to-end: the live data fetch (it hits the network) is exercised
 manually via `python -m pitchsense.train`.
@@ -167,6 +191,6 @@ manually via `python -m pitchsense.train`.
    features) — done.
 2. **Static pitch visualization** (shot + freeze-frame, annotated with xG) — done.
 3. **Animated replay** of a possession (interpolated ball track) — done.
-4. Quiz layer: pause, guess, compare to the model, explain the gap.
+4. **Quiz layer**: estimate, compare to the model, explain the gap (Streamlit) — done. **MVP complete.**
 5. Adaptive difficulty + per-concept progress tracking.
 6. Stretch: tactical pattern classifier, player-role clustering, leaderboard.
