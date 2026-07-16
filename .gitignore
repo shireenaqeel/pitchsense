@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+
+# Data and model artifacts (regenerated, not committed)
+data/
+models/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Tooling config and planning docs (kept local)
+CLAUDE.md
+claude-code-general-instructions.md
+football-xg-project-spec.md
