@@ -61,8 +61,12 @@ def _scatter(ax, points, color, label, size=140, edge="#222222"):
     ax.scatter(xs, ys, c=color, s=size, edgecolors=edge, linewidths=1, zorder=4, label=label)
 
 
-def plot_shot(shot, xg=None, ax=None, save_path: Path | None = None):
-    """Plot a single shot row (a pandas Series) with its freeze-frame."""
+def plot_shot(shot, xg=None, ax=None, save_path: Path | None = None, reveal: bool = True):
+    """Plot a single shot row (a pandas Series) with its freeze-frame.
+
+    When ``reveal`` is False the outcome is hidden: the ball path and the
+    outcome/xG in the title are omitted so the shot can be used as a quiz prompt.
+    """
     if ax is None:
         _, ax = plt.subplots(figsize=(12, 8))
     draw_pitch(ax)
@@ -76,8 +80,9 @@ def plot_shot(shot, xg=None, ax=None, save_path: Path | None = None):
     _scatter(ax, groups["keeper"], KEEPER_COLOR, "Goalkeeper", size=170)
 
     # Ball path from the shot to where it ended up, drawn above the players so
-    # the trajectory stays readable through a crowded box.
-    if end is not None and len(end) >= 2:
+    # the trajectory stays readable through a crowded box. Hidden until revealed
+    # so it doesn't give away whether the shot found the net.
+    if reveal and end is not None and len(end) >= 2:
         ax.annotate(
             "",
             xy=(end[0], end[1]),
@@ -89,10 +94,13 @@ def plot_shot(shot, xg=None, ax=None, save_path: Path | None = None):
     ax.scatter([start[0]], [start[1]], c=SHOOTER_COLOR, s=200, edgecolors="#000000",
                linewidths=1.5, zorder=7, label="Shot")
 
-    outcome = shot.get("shot_outcome", "")
-    title = f"{shot.get('player', 'Shot')} — {outcome}"
-    if xg is not None:
-        title += f"  |  model xG: {xg:.2f}"
+    if reveal:
+        outcome = shot.get("shot_outcome", "")
+        title = f"{shot.get('player', 'Shot')} — {outcome}"
+        if xg is not None:
+            title += f"  |  model xG: {xg:.2f}"
+    else:
+        title = "Where does this shot rank? Estimate the chance it scores."
     ax.set_title(title, color="#222222", fontsize=13)
     ax.legend(loc="lower left", framealpha=0.9)
 
