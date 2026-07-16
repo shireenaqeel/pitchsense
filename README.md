@@ -72,10 +72,25 @@ src/pitchsense/
   data.py       # load & cache StatsBomb shots
   features.py   # pitch geometry + feature engineering (pure, tested)
   train.py      # train, evaluate, and save the baseline model
-tests/          # unit tests for the geometry and feature frame
+  pitch.py      # draw a football pitch in StatsBomb coordinates
+  viz.py        # render a shot + its freeze-frame, annotated with model xG
+tests/          # unit tests for the geometry, features, and rendering
 data/           # cached raw data (git-ignored)
-models/         # trained model + metrics (git-ignored)
+models/         # trained models + metrics (git-ignored)
+docs/           # rendered example figures
 ```
+
+## Visualization
+
+Any shot can be drawn on a pitch with its freeze-frame — the shooter, teammates,
+defenders, and goalkeeper as StatsBomb recorded them at the moment of the shot —
+with the ball's path and the model's xG in the title. This is the visual layer
+the interactive quiz will later pause on.
+
+![Example shot](docs/example_shot.png)
+
+The example above is a Luis Suárez goal the model rates at just 0.03 xG: a tight
+chance struck through a crowded box. Regenerate it with `python -m pitchsense.viz`.
 
 ## Setup
 
@@ -94,6 +109,9 @@ pip install -r requirements.txt
 # Train and evaluate the baseline xG model (downloads & caches data on first run)
 PYTHONPATH=src python -m pitchsense.train
 
+# Render an example shot with its freeze-frame to docs/example_shot.png
+PYTHONPATH=src python -m pitchsense.viz
+
 # Run the tests
 pytest
 ```
@@ -105,6 +123,9 @@ pytest
   missing freeze-frames, and numpy-array locations from the parquet cache.
 - Feature frame assembly: penalties dropped, goals labelled, header flag, and the
   assist-type features (present and defaulted-to-zero cases).
+- Rendering: the pitch has correct extent and markings, and freeze-frame players
+  are grouped into teammates, defenders, and goalkeeper (including numpy-array
+  locations and missing/incomplete entries).
 
 Not yet tested end-to-end: the live data fetch (it hits the network) is exercised
 manually via `python -m pitchsense.train`.
@@ -123,7 +144,7 @@ manually via `python -m pitchsense.train`.
 
 1. **Data + baseline xG model** (Logistic Regression vs XGBoost, assist-type
    features) — done.
-2. Static pitch visualization (single frame of player/ball positions).
+2. **Static pitch visualization** (shot + freeze-frame, annotated with xG) — done.
 3. Animated replay of an event sequence.
 4. Quiz layer: pause, guess, compare to the model, explain the gap.
 5. Adaptive difficulty + per-concept progress tracking.
