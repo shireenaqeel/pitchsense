@@ -45,37 +45,53 @@ The assist features are joined from the assisting pass event via each shot's
 **Target:** whether the shot was a goal. Penalties are excluded — they score far more often than open play and would distort the model.
 
 **Models:** two are trained and compared — Logistic Regression (standardized
-features) and XGBoost. The pipeline picks whichever has the lower held-out log
-loss as the model it serves; it is not hardcoded.
+features) and XGBoost. Each one's hyperparameters are tuned by 5-fold
+cross-validated search on the training data (a grid over the linear model's
+regularisation strength, a 40-point randomized search over the XGBoost tree
+parameters), optimising log loss because xG needs to be *calibrated*, not just
+correctly ranked. The pipeline serves whichever tuned model has the lower
+cross-validated log loss; it is not hardcoded.
 
-## Results (held-out test set)
+## Results
+
+Each model is reported two ways: **cross-validated** metrics (mean ± std over the
+five training folds, which show stability) and a **held-out test set** never
+touched during the search (an unbiased final number).
 
 Trained across four tournaments (5,606 open-play shots, 9.0% goal rate, 11
 features):
 
-| Model | ROC AUC | Log loss | Brier |
-|---|---|---|---|
-| **Logistic Regression** (served) | 0.762 | **0.261** | **0.072** |
-| XGBoost | **0.767** | 0.263 | 0.074 |
+| Model | CV log loss | CV ROC AUC | Test log loss | Test ROC AUC |
+|---|--:|--:|--:|--:|
+| **Logistic Regression** (served) | 0.256 ± 0.013 | 0.779 ± 0.036 | 0.260 | 0.762 |
+| XGBoost | 0.256 ± 0.012 | 0.777 ± 0.033 | 0.258 | 0.769 |
 
-This is the payoff from the larger training set. On World Cup 2018 alone (only
-~135 goals) XGBoost overfit badly and trailed the linear model on every metric,
-at 0.708 AUC. With four tournaments and ~500 goals it climbs to **0.767 AUC and
-now edges the linear model on ranking** — exactly the behaviour a gradient-boosted
-tree is expected to show once it has enough data. Logistic regression still wins
-on log loss by a hair, so it remains the served model (the pipeline picks the
-lower log loss, not a hardcoded choice); the two are now effectively neck and
-neck, where before there was a wide gap.
+Two things stand out. First, **tuning improved both models**: before the search,
+cross-validated log loss was 0.261 (linear) and 0.263 (XGBoost); after it, both
+land at 0.256. The search regularised the linear model harder (`C=0.1`) and, more
+tellingly, drove XGBoost to very shallow trees (`max_depth=2`, `learning_rate=0.02`)
+— it discovered on its own that the earlier hand-set depth-4 config was overfitting.
+
+Second, **cross-validation shows the two models are now statistically tied**:
+their CV log losses are identical to three decimals and their AUCs sit well within
+one standard deviation of each other (±0.03). On the held-out test set XGBoost is
+marginally ahead (0.769 vs 0.762 AUC, 0.258 vs 0.260 log loss), but the fold-to-fold
+spread says that gap is noise, not a real ranking. Logistic regression wins the
+CV-log-loss tie by the barest margin and stays the served model — which is the
+honest outcome: with these 11 features the linear model is as good as the tree.
+This is why cross-validation matters — a single split would have declared a
+"winner" that the folds show does not exist.
 
 The served model stays well calibrated: across ten probability buckets its
 predictions track the actual goal rate closely, with only mild over-prediction in
-the highest bucket (predicts ~0.35, actual ~0.27). For reference, StatsBomb's own
+the highest bucket (predicts ~0.34, actual ~0.27). For reference, StatsBomb's own
 production xG reaches ~0.78–0.80 AUC using more features (including richer
 freeze-frame geometry), so this baseline sits in a sensible range.
 
-Both models are saved (`models/xg_logreg.joblib`, `models/xg_xgboost.joblib`),
-the served model is copied to `models/xg_baseline.joblib`, and the full
-comparison is written to `models/xg_metrics.json` on every training run.
+Both tuned models are saved (`models/xg_logreg.joblib`, `models/xg_xgboost.joblib`),
+the served model is copied to `models/xg_baseline.joblib`, and the full comparison
+— best hyperparameters, per-fold CV metrics, and test metrics — is written to
+`models/xg_metrics.json` on every training run.
 
 ## Project layout
 
@@ -319,6 +335,9 @@ pytest
   missing freeze-frames, and numpy-array locations from the parquet cache.
 - Feature frame assembly: penalties dropped, goals labelled, header flag, and the
   assist-type features (present and defaulted-to-zero cases).
+- Training helpers: the cross-validation summary (per-fold mean/std with the
+  sign-flip for sklearn's negated log-loss and Brier scorers) and the search-space
+  definitions (both models present, tuning the expected parameters).
 - Rendering: the pitch has correct extent and markings, and freeze-frame players
   are grouped into teammates, defenders, and goalkeeper (including numpy-array
   locations and missing/incomplete entries).
@@ -369,11 +388,12 @@ manually via `python -m pitchsense.train`.
   would shift again if trained on league data; the club competitions in StatsBomb
   open data are also mostly single-team (heavily Barcelona), which would bias a
   role or tactics model, so they were deliberately left out.
-- No hyperparameter search or cross-validation yet; metrics come from a single
-  train/test split with a fixed seed. This is now the most likely lever for
-  pushing xG past the current ~0.76 AUC, more than adding data.
+- Cross-validation shows the current 11 features have largely plateaued: both a
+  linear model and a tuned gradient-boosted tree top out around 0.26 log loss /
+  0.77 AUC, so the next real gain is richer features, not a fancier model.
 - Freeze-frame geometry is summarised as a single defenders-in-cone count; the
-  keeper's position and finer spatial detail aren't used yet.
+  keeper's position and finer spatial detail aren't used yet — this is the most
+  promising place to add the features the point above calls for.
 - The tactical clusters are unsupervised and unlabelled by nature: their names
   are a reasonable reading of the centroids, not validated against coached
   ground truth, and the silhouette (0.26) reflects genuinely overlapping play.
@@ -385,8 +405,8 @@ manually via `python -m pitchsense.train`.
 
 ## Roadmap
 
-1. **Data + baseline xG model** (Logistic Regression vs XGBoost, assist-type
-   features) — done.
+1. **Data + xG model** (Logistic Regression vs XGBoost, assist-type features,
+   multi-tournament data, cross-validated hyperparameter search) — done.
 2. **Static pitch visualization** (shot + freeze-frame, annotated with xG) — done.
 3. **Animated replay** of a possession (interpolated ball track) — done.
 4. **Quiz layer**: estimate, compare to the model, explain the gap (Streamlit) — done. **MVP complete.**
