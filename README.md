@@ -78,6 +78,7 @@ src/pitchsense/
   animate.py    # render a possession as an animated replay (GIF)
   quiz.py       # scoring and explanation for predict-and-compare
   concepts.py   # concept tagging, per-concept progress, adaptive shot selection
+  leaderboard.py # persistent local high-score table (pure, tested)
   possessions.py # possession -> tactical feature vector (pure, tested)
   tactics.py    # cluster possessions into tactical patterns (k-means)
   players.py    # player -> behavioural feature vector (pure, tested)
@@ -140,6 +141,19 @@ alongside an exploration nudge so unseen concepts still surface early. A
 practice concentrates where your intuition is furthest from the model's. The
 tagging, progress tracking, and weighted selection are pure functions in
 `concepts.py`, kept free of any UI so they can be unit tested.
+
+### Leaderboard
+
+Sessions can be saved to a persistent local leaderboard. Because a session can
+be any length, players are ranked by their **average points per round** rather
+than a raw total, and must complete at least five rounds to qualify so a single
+lucky guess cannot top the board. Each entry also records how many points per
+round the player beat the *model's* own estimate by, which doubles as the
+tie-break. There are no accounts — the board is a single JSON file on disk
+(`data/leaderboard.json`, git-ignored), so it is a local scoreboard rather than
+an online one. The store, ranking, and qualification rules live as pure functions
+in `leaderboard.py` and are unit tested against a temporary file; the quiz shows
+the top ten and reveals a save form once you have qualified.
 
 ## Tactical pattern classifier
 
@@ -293,10 +307,15 @@ pytest
   labeller (dominant position group, purity, and trait-based disambiguation of
   clusters that share a group), plus that silhouette-based `choose_k` recovers a
   known number of separated blobs.
+- Leaderboard: entry construction (averages, model margin, blank-name and
+  zero-round guards), the save/load round-trip and parent-directory creation,
+  resilience to a missing or corrupt file, and the ranking rules (average first,
+  model margin as tie-break, and the minimum-rounds qualification filter).
 
-The Streamlit flow (initial render, guessing, revealing, next shot) is checked
-end-to-end with Streamlit's AppTest harness as a manual smoke test; it needs the
-data cache present and so is run by hand rather than in the pytest suite.
+The Streamlit flow (initial render, guessing, revealing, next shot, and saving a
+qualifying score to the leaderboard) is checked end-to-end with Streamlit's
+AppTest harness as a manual smoke test; it needs the data cache present and so is
+run by hand rather than in the pytest suite.
 
 Not yet tested end-to-end: the live data fetch (it hits the network) is exercised
 manually via `python -m pitchsense.train`.
@@ -332,4 +351,5 @@ manually via `python -m pitchsense.train`.
    into build-up / counter-attack / regain, wired into the replay) — done.
    **Player-role clustering** (k-means + PCA over behavioural stats, labelled and
    purity-checked against nominal positions, with a role map) — done.
-   Remaining: leaderboard.
+   **Leaderboard** (persistent local high-score table, ranked by average points
+   per round with a model-beating tie-break) — done. **All stretch goals shipped.**

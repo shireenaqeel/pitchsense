@@ -22,6 +22,7 @@ from pitchsense.concepts import (
 )
 from pitchsense.data import load_shots
 from pitchsense.features import FEATURE_COLUMNS, build_feature_frame
+from pitchsense.leaderboard import MIN_ROUNDS, add_score, load_scores, make_entry, top
 from pitchsense.quiz import brier_points, explain_shot
 from pitchsense.train import PRIMARY_MODEL_PATH
 from pitchsense.viz import plot_shot
@@ -64,8 +65,41 @@ def init_state(shot_tags):
         st.session_state.model_points = 0
         st.session_state.rounds = 0
         st.session_state.concept_progress = {}
+        st.session_state.saved_score = False
         st.session_state.rng = np.random.default_rng()
         new_round(shot_tags)
+
+
+def render_leaderboard(rounds: int):
+    """Show the top scores and, once qualified, a form to save this session."""
+    st.subheader("🏆 Leaderboard")
+    leaders = top(load_scores(), n=10)
+    if leaders:
+        st.dataframe(
+            [
+                {"#": i + 1, "Player": s["name"], "Avg": f"{s['avg_points']:.0f}",
+                 "vs model": f"{s['vs_model']:+.0f}", "Rounds": s["rounds"]}
+                for i, s in enumerate(leaders)
+            ],
+            hide_index=True, width="stretch",
+        )
+    else:
+        st.caption(f"No qualifying scores yet — play {MIN_ROUNDS}+ rounds and save to start it.")
+
+    if st.session_state.get("saved_score"):
+        st.caption("Your score is saved ✅")
+    elif rounds >= MIN_ROUNDS:
+        with st.form("save_score"):
+            name = st.text_input("Name for the leaderboard", max_chars=20)
+            if st.form_submit_button("Save my score"):
+                add_score(make_entry(
+                    name, st.session_state.total_points,
+                    st.session_state.model_points, rounds,
+                ))
+                st.session_state.saved_score = True
+                st.rerun()
+    else:
+        st.caption(f"Play {MIN_ROUNDS - rounds} more round(s) to save a score.")
 
 
 st.set_page_config(page_title="PitchSense", page_icon="⚽", layout="wide")
@@ -104,6 +138,8 @@ with board:
         st.caption("Your average points per concept — the quiz serves weaker ones more often.")
         for concept, score in sorted(scores.items(), key=lambda kv: kv[1]):
             st.progress(int(round(score)), text=f"{concept} — {score:.0f}/100")
+
+    render_leaderboard(rounds)
 
 with pitch:
     fig, ax = plt.subplots(figsize=(11, 7))
