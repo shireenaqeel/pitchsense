@@ -80,6 +80,8 @@ src/pitchsense/
   concepts.py   # concept tagging, per-concept progress, adaptive shot selection
   possessions.py # possession -> tactical feature vector (pure, tested)
   tactics.py    # cluster possessions into tactical patterns (k-means)
+  players.py    # player -> behavioural feature vector (pure, tested)
+  roles.py      # cluster players into roles (k-means + PCA role map)
 streamlit_app.py  # interactive quiz UI
 tests/          # unit tests for the geometry, features, and rendering
 data/           # cached raw data (git-ignored)
@@ -179,6 +181,51 @@ and `models/tactics_metrics.json` on every training run, and the animated replay
 is captioned with the pattern the classifier assigns to the possession being
 shown.
 
+## Player-role clustering
+
+The same idea is applied to players: instead of trusting the position they are
+listed at, PitchSense clusters players by *how they actually play*. Each player
+(`players.py`, pure and tested) is described by scale-free behavioural features —
+average position on the pitch, how much they roam, and the share of their actions
+that are passes, carries, dribbles, shots, or defending, plus how forward and how
+long they pass. Shares and averages rather than raw counts mean a player who
+featured in six matches is comparable to one who featured in two without needing
+exact minutes. The nominal position is deliberately **not** a clustering feature —
+it is kept only to label and validate the clusters.
+
+Features are standardised and clustered with k-means; the number of clusters is
+chosen by silhouette, and PCA projects the space to two dimensions for the map
+below. Trained on all 64 World Cup 2018 matches (**306 regular players**,
+k chosen as **5**, silhouette **0.284**):
+
+| Role cluster | Players | Position purity | Avg x | Width | Pass share | Def. share | Dribble |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| Goalkeeper | 10 | 100% | 9.8 | 6.1 | 0.35 | 0.07 | 0.001 |
+| Centre-back | 117 | 46% | 51.9 | 16.9 | 0.32 | 0.15 | 0.003 |
+| Full-back | 60 | 87% | 61.5 | 29.9 | 0.32 | 0.17 | 0.008 |
+| Winger | 70 | 33% | 73.4 | 22.3 | 0.23 | 0.17 | 0.021 |
+| Forward | 49 | 37% | 70.7 | 19.9 | 0.20 | 0.26 | 0.010 |
+
+Each cluster is named by the most common listed position of the players inside
+it, and its **purity** — the share that actually hold that position — is reported
+rather than hidden. Goalkeepers separate perfectly (a clean island in the map)
+and full-backs are 87% pure because their width makes them behaviourally
+distinct. The interesting result is the mixing: the "Centre-back" cluster also
+absorbs 38 central and 21 defensive midfielders, because deep, narrow, pass-heavy
+midfielders *play like* defenders; the more advanced midfielders land instead in
+the winger and forward clusters. There is no clean standalone midfielder cluster
+at k=5 — a genuine finding, not a bug: midfield is a spectrum, and behaviour
+sorts those players by whether they lean defensive or attacking.
+
+![Player role map](docs/player_roles.png)
+
+The PCA map shows the same story spatially: goalkeepers sit far off on their own,
+and the outfield roles form a continuous defence-to-attack gradient rather than
+crisp islands, which is why the silhouette (0.284) is moderate. The model, PCA
+projection, and full per-cluster position breakdown are saved to
+`models/roles_kmeans.joblib` and `models/roles_metrics.json`. Regenerate
+everything, including the map, with `python -m pitchsense.roles`.
+
 ## Setup
 
 Requires Python 3.11+.
@@ -204,6 +251,9 @@ PYTHONPATH=src python -m pitchsense.animate
 
 # Cluster possessions into tactical patterns and print the cluster summary
 PYTHONPATH=src python -m pitchsense.tactics
+
+# Cluster players into roles, print the summary, and render docs/player_roles.png
+PYTHONPATH=src python -m pitchsense.roles
 
 # Launch the interactive quiz
 streamlit run streamlit_app.py
@@ -237,6 +287,12 @@ pytest
   labeller (relative ranking of centroids onto the archetypes, every cluster
   named once, centroid averaging). The replay's pattern caption degrades
   gracefully to nothing when the classifier has not been trained.
+- Player roles: behavioural aggregation (action shares, forward-pass ratio,
+  average pitch position, pooling raw counts across matches, the modal-position
+  label, the min-events filter, missing-location handling) and the cluster
+  labeller (dominant position group, purity, and trait-based disambiguation of
+  clusters that share a group), plus that silhouette-based `choose_k` recovers a
+  known number of separated blobs.
 
 The Streamlit flow (initial render, guessing, revealing, next shot) is checked
 end-to-end with Streamlit's AppTest harness as a manual smoke test; it needs the
@@ -257,6 +313,11 @@ manually via `python -m pitchsense.train`.
 - The tactical clusters are unsupervised and unlabelled by nature: their names
   are a reasonable reading of the centroids, not validated against coached
   ground truth, and the silhouette (0.26) reflects genuinely overlapping play.
+- Player roles are likewise unsupervised: at k=5 midfield does not form its own
+  cluster but splits across the defensive and attacking groups, so purity is
+  moderate for the outfield clusters. Minutes played are not used; behaviour is
+  normalised by action shares instead, which slightly flattens players with very
+  few touches even after the min-events filter.
 
 ## Roadmap
 
@@ -269,4 +330,6 @@ manually via `python -m pitchsense.train`.
    per-concept scoring, weak-area-biased shot selection, progress panel — done.
 6. Stretch: **tactical pattern classifier** (k-means over possessions, labelled
    into build-up / counter-attack / regain, wired into the replay) — done.
-   Remaining: player-role clustering, leaderboard.
+   **Player-role clustering** (k-means + PCA over behavioural stats, labelled and
+   purity-checked against nominal positions, with a role map) — done.
+   Remaining: leaderboard.
