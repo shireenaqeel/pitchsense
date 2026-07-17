@@ -4,7 +4,23 @@ import numpy as np
 import pandas as pd
 
 from pitchsense.players import PLAYER_FEATURES
-from pitchsense.roles import choose_k, label_clusters
+from pitchsense.roles import assign_roles, choose_k, label_clusters
+
+
+class _StubModel:
+    def __init__(self, clusters):
+        self._clusters = clusters
+
+    def predict(self, X):
+        return np.array(self._clusters[: len(X)])
+
+
+def test_assign_roles_maps_each_player_to_its_role():
+    data = pd.DataFrame({f: [0.0, 0.0] for f in PLAYER_FEATURES})
+    bundle = {"model": _StubModel([1, 0]), "labels": {0: "Winger", 1: "Forward"},
+              "features": PLAYER_FEATURES}
+    out = assign_roles(bundle, data)
+    assert list(out) == ["Forward", "Winger"]
 
 
 def _feats(rows):

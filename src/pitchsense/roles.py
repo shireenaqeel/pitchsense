@@ -225,6 +225,12 @@ def predict_role(bundle, features: dict) -> str:
     return bundle["labels"][cluster]
 
 
+def assign_roles(bundle, data: pd.DataFrame) -> pd.Series:
+    """Role label for every row of a player feature frame."""
+    clusters = bundle["model"].predict(data[bundle["features"]])
+    return pd.Series([bundle["labels"][int(c)] for c in clusters], index=data.index)
+
+
 if __name__ == "__main__":
     result = train_roles()
     m = result["metrics"]

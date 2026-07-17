@@ -117,18 +117,34 @@ The replay above is a full goal build-up. Regenerate it with
 trained, the replay is captioned with the pattern it detects for the possession
 — the example above reads *Counter-attack / direct*.
 
-## Interactive quiz
+## Interactive app
 
-The pieces above come together in a Streamlit app. It shows a real shot's
-freeze-frame with the outcome hidden, you estimate the chance it scores, and it
-then reveals the actual result, the model's xG, and a plain-language explanation
-of the situation. Your estimates are scored against the outcome with the Brier
-rule and compared to the model's own score, so you can see how your intuition
-stacks up against a model trained on real shots.
+The pieces above come together in a Streamlit app with three tabs.
 
 ```bash
 streamlit run streamlit_app.py
 ```
+
+**🎯 Predict the shot** — the quiz. It shows a real shot's freeze-frame with the
+outcome hidden, you estimate the chance it scores, and it then reveals the actual
+result, the model's xG, and a plain-language explanation of the situation. Your
+estimates are scored against the outcome with the Brier rule and compared to the
+model's own score, so you can see how your intuition stacks up against a model
+trained on real shots.
+
+**🧭 Tactical patterns** — surfaces the possession classifier: the discovered
+clusters with their size and profile, and a live "classify a possession" panel
+where a few sliders (passes, duration, upfield yards and speed) drive the trained
+model and it names the pattern in real time.
+
+**🧑‍🤝‍🧑 Player roles** — surfaces the role clustering: the PCA role map, each
+cluster's size, positional purity and behavioural profile, and a player lookup
+that shows the role the model puts any player in next to the position they were
+listed at (Messi and Ronaldo, for instance, both land in the winger cluster).
+
+Both explorer tabs degrade gracefully to a "train this model first" hint if the
+model has not been built yet, so the app runs from a fresh clone with only the xG
+model present.
 
 ### Adaptive practice
 
@@ -312,10 +328,16 @@ pytest
   resilience to a missing or corrupt file, and the ranking rules (average first,
   model margin as tie-break, and the minimum-rounds qualification filter).
 
-The Streamlit flow (initial render, guessing, revealing, next shot, and saving a
-qualifying score to the leaderboard) is checked end-to-end with Streamlit's
-AppTest harness as a manual smoke test; it needs the data cache present and so is
-run by hand rather than in the pytest suite.
+The bulk labellers that the explorer tabs rely on (`label_possessions`,
+`assign_roles`) are unit tested with a stub clusterer, and `overall_means`
+composes the seed possession from the saved metrics.
+
+The Streamlit flow is checked end-to-end with Streamlit's AppTest harness as a
+manual smoke test — the quiz (guessing, revealing, next shot, and saving a
+qualifying score to the leaderboard) and both explorer tabs (the tactical-pattern
+sliders driving a live classification, and the player-role lookup). It needs the
+data caches and trained models present and so is run by hand rather than in the
+pytest suite.
 
 Not yet tested end-to-end: the live data fetch (it hits the network) is exercised
 manually via `python -m pitchsense.train`.
