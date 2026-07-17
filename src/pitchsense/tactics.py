@@ -30,7 +30,7 @@ from pitchsense.possessions import (
 N_CLUSTERS = 3
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-POSSESSIONS_CACHE = DATA_DIR / "wc2018_possessions.parquet"
+POSSESSIONS_CACHE = DATA_DIR / "possessions.parquet"
 
 MODEL_DIR = Path(__file__).resolve().parents[2] / "models"
 MODEL_PATH = MODEL_DIR / "tactics_kmeans.joblib"
@@ -52,11 +52,10 @@ def load_possession_data(use_cache: bool = True) -> pd.DataFrame:
 
     from statsbombpy import sb  # lazy: keeps the module importable offline
 
-    from pitchsense.data import COMPETITION_ID, SEASON_ID
+    from pitchsense.data import all_match_ids
 
-    matches = sb.matches(competition_id=COMPETITION_ID, season_id=SEASON_ID)
     frames = []
-    for match_id in matches["match_id"]:
+    for match_id in all_match_ids():
         events = sb.events(match_id=match_id)
         events["match_id"] = match_id
         frames.append(build_possession_frame(events))

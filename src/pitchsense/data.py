@@ -2,6 +2,13 @@
 
 The raw event API is slow and rate-limited, so the assembled shot frame is
 cached on disk as a parquet file. Delete the cache to force a refresh.
+
+Training spans several major men's international tournaments (see
+``COMPETITIONS``) rather than a single one: a larger, more varied shot sample
+gives a better-calibrated xG model and enough data for the gradient-boosted model
+to compete with the linear baseline. They are all national-team knockout
+tournaments with full event data and shot freeze-frames, so they are stylistically
+comparable and share the same feature coverage.
 """
 
 from pathlib import Path
@@ -9,12 +16,20 @@ from pathlib import Path
 import pandas as pd
 from statsbombpy import sb
 
-# FIFA World Cup 2018
-COMPETITION_ID = 43
-SEASON_ID = 3
+# (competition_id, season_id) for each tournament in the training set.
+COMPETITIONS = [
+    (43, 3),     # FIFA World Cup 2018
+    (43, 106),   # FIFA World Cup 2022
+    (55, 43),    # UEFA Euro 2020
+    (55, 282),   # UEFA Euro 2024
+]
+
+# A single representative competition, for callers that only need one match (the
+# example replay picks its goal from here). Defaults to the first tournament.
+COMPETITION_ID, SEASON_ID = COMPETITIONS[0]
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-SHOTS_CACHE = DATA_DIR / "wc2018_shots.parquet"
+SHOTS_CACHE = DATA_DIR / "shots.parquet"
 
 # Columns we keep from the raw event frame. Missing ones are filled later.
 SHOT_COLUMNS = [
@@ -67,20 +82,37 @@ def _attach_assist_features(shots: pd.DataFrame, events: pd.DataFrame) -> pd.Dat
     return shots
 
 
+def all_match_ids() -> list:
+    """Every match id across the configured competitions."""
+    ids = []
+    for competition_id, season_id in COMPETITIONS:
+        matches = sb.matches(competition_id=competition_id, season_id=season_id)
+        ids.extend(matches["match_id"].tolist())
+    return ids
+
+
+def shots_from_events(events: pd.DataFrame, match_id) -> pd.DataFrame:
+    """Extract one match's shot rows (with assist features) as ``SHOT_COLUMNS``.
+
+    Shared by the shots loader and the single-pass cache builder so the shot
+    assembly logic lives in exactly one place.
+    """
+    shots = events[events["type"] == "Shot"].copy()
+    shots["match_id"] = match_id
+    if "shot_key_pass_id" not in shots.columns:
+        shots["shot_key_pass_id"] = pd.NA
+    shots = _attach_assist_features(shots, events)
+    for col in SHOT_COLUMNS:
+        if col not in shots.columns:
+            shots[col] = pd.NA
+    return shots[SHOT_COLUMNS]
+
+
 def _fetch_shots() -> pd.DataFrame:
-    matches = sb.matches(competition_id=COMPETITION_ID, season_id=SEASON_ID)
     frames = []
-    for match_id in matches["match_id"]:
+    for match_id in all_match_ids():
         events = sb.events(match_id=match_id)
-        shots = events[events["type"] == "Shot"].copy()
-        shots["match_id"] = match_id
-        if "shot_key_pass_id" not in shots.columns:
-            shots["shot_key_pass_id"] = pd.NA
-        shots = _attach_assist_features(shots, events)
-        for col in SHOT_COLUMNS:
-            if col not in shots.columns:
-                shots[col] = pd.NA
-        frames.append(shots[SHOT_COLUMNS])
+        frames.append(shots_from_events(events, match_id))
     return pd.concat(frames, ignore_index=True)
 
 
