@@ -30,6 +30,10 @@ For every shot we engineer features from the event and its freeze-frame (the sna
 | `distance` | Distance from the shot to the centre of the goal |
 | `angle` | Angle of the goal mouth visible from the shot location (wider = easier) |
 | `defenders_in_cone` | Opponents inside the triangle between the shot and the two goal posts |
+| `nearest_defender_dist` | Distance to the closest opponent outfielder — how much space the shooter had |
+| `defenders_behind_ball` | Opponent outfielders goal-side of the shot (between ball and goal line) |
+| `keeper_dist_to_goal` | How far the goalkeeper was off their line |
+| `keeper_dist_to_ball` | Distance from the keeper to the shot — small values are near one-on-ones |
 | `is_header` | Headed shot |
 | `is_first_time` | Struck first time, without a touch to control |
 | `is_one_on_one` | One-on-one against the keeper |
@@ -39,8 +43,12 @@ For every shot we engineer features from the event and its freeze-frame (the sna
 | `assist_cutback` | The assisting pass was a cutback |
 | `assist_through_ball` | The assisting pass was a through ball |
 
-The assist features are joined from the assisting pass event via each shot's
-`shot_key_pass_id`.
+The four freeze-frame features read the snapshot of every tracked player at the
+instant of the shot: the goalkeeper (found by position name) gives the two keeper
+distances, and the opponents give the nearest-defender and defenders-behind-ball
+counts. When a shot has no freeze-frame these default sensibly (open space, keeper
+on its line). The assist features are joined from the assisting pass event via
+each shot's `shot_key_pass_id`.
 
 **Target:** whether the shot was a goal. Penalties are excluded — they score far more often than open play and would distort the model.
 
@@ -58,35 +66,37 @@ Each model is reported two ways: **cross-validated** metrics (mean ± std over t
 five training folds, which show stability) and a **held-out test set** never
 touched during the search (an unbiased final number).
 
-Trained across four tournaments (5,606 open-play shots, 9.0% goal rate, 11
+Trained across four tournaments (5,606 open-play shots, 9.0% goal rate, 15
 features):
 
 | Model | CV log loss | CV ROC AUC | Test log loss | Test ROC AUC |
 |---|--:|--:|--:|--:|
-| **Logistic Regression** (served) | 0.256 ± 0.013 | 0.779 ± 0.036 | 0.260 | 0.762 |
-| XGBoost | 0.256 ± 0.012 | 0.777 ± 0.033 | 0.258 | 0.769 |
+| **Logistic Regression** (served) | 0.252 ± 0.010 | 0.787 ± 0.026 | 0.261 | 0.766 |
+| XGBoost | 0.253 ± 0.008 | 0.787 ± 0.024 | 0.256 | 0.778 |
 
-Two things stand out. First, **tuning improved both models**: before the search,
-cross-validated log loss was 0.261 (linear) and 0.263 (XGBoost); after it, both
-land at 0.256. The search regularised the linear model harder (`C=0.1`) and, more
-tellingly, drove XGBoost to very shallow trees (`max_depth=2`, `learning_rate=0.02`)
-— it discovered on its own that the earlier hand-set depth-4 config was overfitting.
+Two things stand out. First, **the freeze-frame features helped every metric**.
+Adding the four geometry features — nearest defender, defenders behind the ball,
+and the two goalkeeper distances — lifted cross-validated AUC from ~0.778 to
+**0.787** and cut CV log loss from 0.256 to ~0.252, and it also tightened the
+fold-to-fold spread (XGBoost's AUC std fell from ±0.033 to ±0.024). On the
+held-out test set XGBoost now reaches **0.778 AUC** — the top of the range the
+old model plateaued below, and inside StatsBomb's own ~0.78–0.80. This is the
+lesson the previous step predicted: with the models already tuned, the real gain
+came from better *features*, not a fancier algorithm.
 
-Second, **cross-validation shows the two models are now statistically tied**:
-their CV log losses are identical to three decimals and their AUCs sit well within
-one standard deviation of each other (±0.03). On the held-out test set XGBoost is
-marginally ahead (0.769 vs 0.762 AUC, 0.258 vs 0.260 log loss), but the fold-to-fold
-spread says that gap is noise, not a real ranking. Logistic regression wins the
-CV-log-loss tie by the barest margin and stays the served model — which is the
-honest outcome: with these 11 features the linear model is as good as the tree.
-This is why cross-validation matters — a single split would have declared a
-"winner" that the folds show does not exist.
+Second, **cross-validation still shows the two models are essentially tied**:
+their CV metrics are identical to two decimals and sit well within one standard
+deviation of each other. Logistic regression wins the CV-log-loss tie by the
+barest margin and stays the served model, though XGBoost is now clearly ahead on
+the held-out test set (0.778 vs 0.766 AUC) — a hint the tree may pull away with
+still-richer features. Reporting both keeps the choice honest rather than reading
+too much into a single split.
 
 The served model stays well calibrated: across ten probability buckets its
 predictions track the actual goal rate closely, with only mild over-prediction in
-the highest bucket (predicts ~0.34, actual ~0.27). For reference, StatsBomb's own
-production xG reaches ~0.78–0.80 AUC using more features (including richer
-freeze-frame geometry), so this baseline sits in a sensible range.
+the highest bucket (predicts ~0.33, actual ~0.29). For reference, StatsBomb's own
+production xG reaches ~0.78–0.80 AUC using still more features, so this model now
+sits right in that range.
 
 Both tuned models are saved (`models/xg_logreg.joblib`, `models/xg_xgboost.joblib`),
 the served model is copied to `models/xg_baseline.joblib`, and the full comparison
@@ -333,6 +343,10 @@ pytest
 - Pitch geometry: distance, shot angle (relative ordering and bounds), and the
   defenders-in-cone point-in-triangle logic, including teammate/opponent handling,
   missing freeze-frames, and numpy-array locations from the parquet cache.
+- Freeze-frame features: nearest defender (closest opponent, keeper excluded, and
+  the open-space default), defenders behind the ball (goal-side only), and the two
+  goalkeeper distances (found by position, with sensible defaults when absent),
+  including their assembly into the built feature frame.
 - Feature frame assembly: penalties dropped, goals labelled, header flag, and the
   assist-type features (present and defaulted-to-zero cases).
 - Training helpers: the cross-validation summary (per-fold mean/std with the
@@ -388,12 +402,13 @@ manually via `python -m pitchsense.train`.
   would shift again if trained on league data; the club competitions in StatsBomb
   open data are also mostly single-team (heavily Barcelona), which would bias a
   role or tactics model, so they were deliberately left out.
-- Cross-validation shows the current 11 features have largely plateaued: both a
-  linear model and a tuned gradient-boosted tree top out around 0.26 log loss /
-  0.77 AUC, so the next real gain is richer features, not a fancier model.
-- Freeze-frame geometry is summarised as a single defenders-in-cone count; the
-  keeper's position and finer spatial detail aren't used yet — this is the most
-  promising place to add the features the point above calls for.
+- The freeze-frame is now read for the keeper's position and defender spacing, but
+  still not exhaustively: passing/receiving lanes, defender velocities (not in the
+  snapshot), and the shot's placement within the goal mouth are all unused. These
+  are where the tree might pull clear of the linear model.
+- The gradient-boosted tree is marginally ahead on held-out data but not on
+  cross-validation, so which model is "best" is genuinely close; the served choice
+  could flip with a different seed or more features.
 - The tactical clusters are unsupervised and unlabelled by nature: their names
   are a reasonable reading of the centroids, not validated against coached
   ground truth, and the silhouette (0.26) reflects genuinely overlapping play.

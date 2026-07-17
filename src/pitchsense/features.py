@@ -75,6 +75,83 @@ def defenders_in_cone(x: float, y: float, freeze_frame) -> int:
     return count
 
 
+# Distance used for "nearest defender" when there is no opponent in the frame:
+# a large value standing for "open space, nobody close".
+OPEN_SPACE = 30.0
+
+
+def _iter_opponents(freeze_frame):
+    """Yield ``(x, y, is_keeper)`` for each opponent in a freeze-frame.
+
+    Opponents are the entries with ``teammate`` False; the opposing goalkeeper is
+    the opponent whose ``position`` name is Goalkeeper. Entries without a usable
+    location are skipped.
+    """
+    if not isinstance(freeze_frame, (list, np.ndarray)):
+        return
+    for player in freeze_frame:
+        if player.get("teammate", True):
+            continue
+        loc = player.get("location")
+        if loc is None or len(loc) < 2:
+            continue
+        pos = player.get("position")
+        name = pos.get("name") if isinstance(pos, dict) else pos
+        yield float(loc[0]), float(loc[1]), name == "Goalkeeper"
+
+
+def nearest_defender_distance(x: float, y: float, freeze_frame,
+                              default: float = OPEN_SPACE) -> float:
+    """Distance from the shot to the closest opponent outfielder (not the keeper).
+
+    A large value means the shooter had space; the keeper is handled separately by
+    its own features. Returns ``default`` when no outfield opponent is in the frame.
+    """
+    dists = [math.hypot(px - x, py - y)
+             for px, py, is_keeper in _iter_opponents(freeze_frame) if not is_keeper]
+    return min(dists) if dists else default
+
+
+def defenders_behind_ball(x: float, y: float, freeze_frame) -> int:
+    """Opponent outfielders that are goal-side of the shot (nearer the goal line).
+
+    StatsBomb orients the shooting team to attack toward x=120, so an opponent with
+    a larger x than the shot is between the ball and the goal.
+    """
+    return sum(1 for px, py, is_keeper in _iter_opponents(freeze_frame)
+               if not is_keeper and px > x)
+
+
+def goalkeeper_location(freeze_frame):
+    """``(x, y)`` of the opposing goalkeeper, or ``None`` if not in the frame."""
+    for px, py, is_keeper in _iter_opponents(freeze_frame):
+        if is_keeper:
+            return (px, py)
+    return None
+
+
+def keeper_distance_to_goal(freeze_frame) -> float:
+    """How far the keeper is off the goal line (distance to the goal centre).
+
+    Defaults to 0 (as if the keeper were on the line) when the keeper is absent.
+    """
+    gk = goalkeeper_location(freeze_frame)
+    if gk is None:
+        return 0.0
+    return math.hypot(GOAL_CENTER[0] - gk[0], GOAL_CENTER[1] - gk[1])
+
+
+def keeper_distance_to_ball(x: float, y: float, freeze_frame) -> float:
+    """Distance from the keeper to the shot; small values are near one-on-ones.
+
+    Defaults to the distance to goal (keeper assumed on the line) when absent.
+    """
+    gk = goalkeeper_location(freeze_frame)
+    if gk is None:
+        return distance_to_goal(x, y)
+    return math.hypot(gk[0] - x, gk[1] - y)
+
+
 def build_feature_frame(shots: pd.DataFrame) -> pd.DataFrame:
     """Build the model-ready table of engineered features plus the target.
 
@@ -92,6 +169,16 @@ def build_feature_frame(shots: pd.DataFrame) -> pd.DataFrame:
     df["angle"] = df.apply(lambda r: shot_angle(r["x"], r["y"]), axis=1)
     df["defenders_in_cone"] = df.apply(
         lambda r: defenders_in_cone(r["x"], r["y"], r["shot_freeze_frame"]), axis=1
+    )
+    df["nearest_defender_dist"] = df.apply(
+        lambda r: nearest_defender_distance(r["x"], r["y"], r["shot_freeze_frame"]), axis=1
+    )
+    df["defenders_behind_ball"] = df.apply(
+        lambda r: defenders_behind_ball(r["x"], r["y"], r["shot_freeze_frame"]), axis=1
+    )
+    df["keeper_dist_to_goal"] = df["shot_freeze_frame"].apply(keeper_distance_to_goal)
+    df["keeper_dist_to_ball"] = df.apply(
+        lambda r: keeper_distance_to_ball(r["x"], r["y"], r["shot_freeze_frame"]), axis=1
     )
     df["is_header"] = (df["shot_body_part"] == "Head").astype(int)
     df["is_first_time"] = df["shot_first_time"].fillna(False).astype(int)
@@ -111,6 +198,10 @@ FEATURE_COLUMNS = [
     "distance",
     "angle",
     "defenders_in_cone",
+    "nearest_defender_dist",
+    "defenders_behind_ball",
+    "keeper_dist_to_goal",
+    "keeper_dist_to_ball",
     "is_header",
     "is_first_time",
     "is_one_on_one",
