@@ -11,8 +11,15 @@ Unlike a typical xG dashboard, the whole point here is a real pipeline: **real m
 ## Data
 
 - **Source:** [StatsBomb Open Data](https://github.com/statsbomb/open-data) — free, public, real professional match events.
-- **Competition used:** FIFA World Cup 2018 (`competition_id=43`, `season_id=3`), 64 matches.
-- Data is pulled on demand via `statsbombpy` and cached locally under `data/` (git-ignored, not committed).
+- **Competitions used:** four major men's international tournaments — FIFA World
+  Cup 2018 and 2022, and UEFA Euro 2020 and 2024 — **230 matches** in total. They
+  are all national-team knockout tournaments with full event data and shot
+  freeze-frames, so they are stylistically comparable and share the same feature
+  coverage. The set is configured in one place (`COMPETITIONS` in `data.py`).
+- Data is pulled on demand via `statsbombpy` and cached locally under `data/`
+  (git-ignored, not committed). Because all three models read the same raw
+  events, `python -m pitchsense.build_data` fetches every match once and writes
+  all three caches together, rather than downloading the matches three times.
 
 ## Approach (Phase 1 — baseline xG model)
 
@@ -43,22 +50,27 @@ loss as the model it serves; it is not hardcoded.
 
 ## Results (held-out test set)
 
-Trained on World Cup 2018 (1,638 open-play shots, 8.2% goal rate, 11 features):
+Trained across four tournaments (5,606 open-play shots, 9.0% goal rate, 11
+features):
 
 | Model | ROC AUC | Log loss | Brier |
 |---|---|---|---|
-| **Logistic Regression** (served) | **0.758** | **0.242** | **0.066** |
-| XGBoost | 0.708 | 0.267 | 0.073 |
+| **Logistic Regression** (served) | 0.762 | **0.261** | **0.072** |
+| XGBoost | **0.767** | 0.263 | 0.074 |
 
-On this single-competition dataset the linear model wins on every metric. That
-is the expected outcome, not a bug: with only ~135 goals, a gradient-boosted
-tree overfits, whereas the core xG signal (distance and angle) is smooth and
-close to linear in log-odds — exactly what logistic regression models well. The
-tree should overtake it once the training set is expanded across competitions.
+This is the payoff from the larger training set. On World Cup 2018 alone (only
+~135 goals) XGBoost overfit badly and trailed the linear model on every metric,
+at 0.708 AUC. With four tournaments and ~500 goals it climbs to **0.767 AUC and
+now edges the linear model on ranking** — exactly the behaviour a gradient-boosted
+tree is expected to show once it has enough data. Logistic regression still wins
+on log loss by a hair, so it remains the served model (the pipeline picks the
+lower log loss, not a hardcoded choice); the two are now effectively neck and
+neck, where before there was a wide gap.
 
-The served model is well calibrated: for its highest-probability bucket of shots
-it predicts ~0.36 and the actual goal rate is ~0.39. For reference, StatsBomb's
-own production xG reaches ~0.78–0.80 AUC using more features (including richer
+The served model stays well calibrated: across ten probability buckets its
+predictions track the actual goal rate closely, with only mild over-prediction in
+the highest bucket (predicts ~0.35, actual ~0.27). For reference, StatsBomb's own
+production xG reaches ~0.78–0.80 AUC using more features (including richer
 freeze-frame geometry), so this baseline sits in a sensible range.
 
 Both models are saved (`models/xg_logreg.joblib`, `models/xg_xgboost.joblib`),
@@ -69,7 +81,8 @@ comparison is written to `models/xg_metrics.json` on every training run.
 
 ```
 src/pitchsense/
-  data.py       # load & cache StatsBomb shots
+  data.py       # competition config + load & cache StatsBomb shots
+  build_data.py # single-pass fetch that builds all three caches at once
   features.py   # pitch geometry + feature engineering (pure, tested)
   train.py      # train, evaluate, and save the baseline model
   pitch.py      # draw a football pitch in StatsBomb coordinates
@@ -99,8 +112,9 @@ the interactive quiz will later pause on.
 
 ![Example shot](docs/example_shot.png)
 
-The example above is a Luis Suárez goal the model rates at just 0.03 xG: a tight
-chance struck through a crowded box. Regenerate it with `python -m pitchsense.viz`.
+The example above is a Luis Suárez goal the model rates at just 0.01 xG: a tight
+chance struck through a crowded box (seven defenders between the ball and goal).
+Regenerate it with `python -m pitchsense.viz`.
 
 ### Animated replay
 
@@ -186,23 +200,24 @@ of passes, how far and how directly it moved upfield (`net_forward`,
 and whether it ended in a shot. Possessions with fewer than three on-ball
 actions are dropped as too short to carry a pattern.
 
-Trained on all 64 World Cup 2018 matches (**8,307 possessions**, k=3, silhouette
+Trained across all four tournaments (**29,675 possessions**, k=3, silhouette
 **0.26**), the three clusters map cleanly onto the archetypes the project
 targets:
 
 | Pattern | Share | Passes | Duration | Upfield | Directness | Speed | Ends in shot |
 |---|--:|--:|--:|--:|--:|--:|--:|
-| **Counter-attack / direct** | 3,573 | 3.8 | 10.9s | 54.8y | 0.52 | 6.7 y/s | 12% |
-| **Patient build-up** | 1,790 | 15.4 | 50.5s | 55.9y | 0.15 | 1.3 y/s | 22% |
-| **Quick regain / transition** | 2,944 | 5.3 | 15.5s | 10.9y | 0.07 | 0.7 y/s | 14% |
+| **Counter-attack / direct** | 12,686 | 4.0 | 11.9s | 56.4y | 0.52 | 6.4 y/s | 13% |
+| **Patient build-up** | 5,876 | 17.6 | 57.3s | 56.0y | 0.14 | 1.2 y/s | 23% |
+| **Quick regain / transition** | 11,113 | 5.8 | 17.2s | 12.0y | 0.07 | 0.7 y/s | 12% |
 
 The clusters are genuinely distinct and readable: counter-attacks are short,
-fast, and strike straight at goal; build-ups string together ~15 patient passes
-over ~50 seconds, cover the most width, and produce the most shots; the third
-group starts highest up the pitch (average start ~74 of 120 yards) and makes
-little further ground — balls won high and used quickly. The silhouette of 0.26
-is modest, as expected for real football possessions that overlap rather than
-fall into clean islands; the value is reported so the k=3 choice can be
+fast, and strike straight at goal; build-ups string together ~18 patient passes
+over ~57 seconds and produce the most shots; the third group starts highest up
+the pitch and makes little further ground — balls won high and used quickly. The
+profiles are essentially unchanged from the single-tournament version, which is
+reassuring: the same tactical structure recurs at 3.5× the scale. The silhouette
+of 0.26 is modest, as expected for real football possessions that overlap rather
+than fall into clean islands; the value is reported so the k=3 choice can be
 sanity-checked, and the cluster naming is a deterministic, unit-tested ranking of
 the centroids rather than a hand-placed guess.
 
@@ -225,33 +240,35 @@ it is kept only to label and validate the clusters.
 
 Features are standardised and clustered with k-means; the number of clusters is
 chosen by silhouette, and PCA projects the space to two dimensions for the map
-below. Trained on all 64 World Cup 2018 matches (**306 regular players**,
-k chosen as **5**, silhouette **0.284**):
+below. Trained across all four tournaments (**859 regular players**,
+k chosen as **5**, silhouette **0.289**):
 
 | Role cluster | Players | Position purity | Avg x | Width | Pass share | Def. share | Dribble |
 |---|--:|--:|--:|--:|--:|--:|--:|
-| Goalkeeper | 10 | 100% | 9.8 | 6.1 | 0.35 | 0.07 | 0.001 |
-| Centre-back | 117 | 46% | 51.9 | 16.9 | 0.32 | 0.15 | 0.003 |
-| Full-back | 60 | 87% | 61.5 | 29.9 | 0.32 | 0.17 | 0.008 |
-| Winger | 70 | 33% | 73.4 | 22.3 | 0.23 | 0.17 | 0.021 |
-| Forward | 49 | 37% | 70.7 | 19.9 | 0.20 | 0.26 | 0.010 |
+| Goalkeeper | 45 | 100% | 9.9 | 5.8 | 0.37 | 0.05 | 0.000 |
+| Centre-back | 338 | 53% | 50.7 | 17.4 | 0.31 | 0.14 | 0.003 |
+| Full-back | 155 | 88% | 60.1 | 29.1 | 0.32 | 0.17 | 0.007 |
+| Winger | 178 | 38% | 73.4 | 23.6 | 0.24 | 0.16 | 0.019 |
+| Forward | 143 | 41% | 70.4 | 19.1 | 0.21 | 0.23 | 0.011 |
 
 Each cluster is named by the most common listed position of the players inside
 it, and its **purity** — the share that actually hold that position — is reported
 rather than hidden. Goalkeepers separate perfectly (a clean island in the map)
-and full-backs are 87% pure because their width makes them behaviourally
+and full-backs are 88% pure because their width makes them behaviourally
 distinct. The interesting result is the mixing: the "Centre-back" cluster also
-absorbs 38 central and 21 defensive midfielders, because deep, narrow, pass-heavy
+absorbs 97 defensive and 49 central midfielders, because deep, narrow, pass-heavy
 midfielders *play like* defenders; the more advanced midfielders land instead in
 the winger and forward clusters. There is no clean standalone midfielder cluster
 at k=5 — a genuine finding, not a bug: midfield is a spectrum, and behaviour
-sorts those players by whether they lean defensive or attacking.
+sorts those players by whether they lean defensive or attacking. The pattern is
+unchanged from the single-tournament run at nearly 3× the players, and purity
+edges up slightly with the larger sample.
 
 ![Player role map](docs/player_roles.png)
 
 The PCA map shows the same story spatially: goalkeepers sit far off on their own,
 and the outfield roles form a continuous defence-to-attack gradient rather than
-crisp islands, which is why the silhouette (0.284) is moderate. The model, PCA
+crisp islands, which is why the silhouette (0.289) is moderate. The model, PCA
 projection, and full per-cluster position breakdown are saved to
 `models/roles_kmeans.joblib` and `models/roles_metrics.json`. Regenerate
 everything, including the map, with `python -m pitchsense.roles`.
@@ -270,7 +287,10 @@ pip install -r requirements.txt
 ## Run
 
 ```bash
-# Train and evaluate the baseline xG model (downloads & caches data on first run)
+# Fetch every match once and build all three data caches (slow, run first)
+PYTHONPATH=src python -m pitchsense.build_data
+
+# Train and evaluate the baseline xG model (uses the cache; fetches if absent)
 PYTHONPATH=src python -m pitchsense.train
 
 # Render an example shot with its freeze-frame to docs/example_shot.png
@@ -344,11 +364,14 @@ manually via `python -m pitchsense.train`.
 
 ## Known limitations
 
-- Single competition (World Cup 2018) — a larger multi-competition training set
-  would improve and stabilise the model, and is what would let XGBoost overtake
-  the linear baseline.
+- International tournaments only (World Cups and Euros). National-team knockout
+  football is somewhat distinct from week-in week-out club play, so the models
+  would shift again if trained on league data; the club competitions in StatsBomb
+  open data are also mostly single-team (heavily Barcelona), which would bias a
+  role or tactics model, so they were deliberately left out.
 - No hyperparameter search or cross-validation yet; metrics come from a single
-  train/test split with a fixed seed.
+  train/test split with a fixed seed. This is now the most likely lever for
+  pushing xG past the current ~0.76 AUC, more than adding data.
 - Freeze-frame geometry is summarised as a single defenders-in-cone count; the
   keeper's position and finer spatial detail aren't used yet.
 - The tactical clusters are unsupervised and unlabelled by nature: their names

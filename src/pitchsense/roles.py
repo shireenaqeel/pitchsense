@@ -34,7 +34,7 @@ from pitchsense.players import (
 K_RANGE = range(5, 9)
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-PLAYERS_CACHE = DATA_DIR / "wc2018_players.parquet"
+PLAYERS_CACHE = DATA_DIR / "players.parquet"
 
 MODEL_DIR = Path(__file__).resolve().parents[2] / "models"
 MODEL_PATH = MODEL_DIR / "roles_kmeans.joblib"
@@ -73,10 +73,9 @@ def load_player_data(use_cache: bool = True) -> pd.DataFrame:
 
     from statsbombpy import sb  # lazy: keeps the module importable offline
 
-    from pitchsense.data import COMPETITION_ID, SEASON_ID
+    from pitchsense.data import all_match_ids
 
-    matches = sb.matches(competition_id=COMPETITION_ID, season_id=SEASON_ID)
-    frames = [player_raw_aggregates(sb.events(match_id=mid)) for mid in matches["match_id"]]
+    frames = [player_raw_aggregates(sb.events(match_id=mid)) for mid in all_match_ids()]
     pooled = combine_aggregates(pd.concat(frames, ignore_index=True))
     data = finalize_features(pooled)
 
