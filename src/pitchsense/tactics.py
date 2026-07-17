@@ -155,6 +155,26 @@ def predict_pattern(bundle, features: dict) -> str:
     return bundle["labels"][cluster]
 
 
+def label_possessions(bundle, data: pd.DataFrame) -> pd.Series:
+    """Pattern label for every row of a possession feature frame."""
+    clusters = bundle["model"].predict(data[POSSESSION_FEATURES])
+    return pd.Series([bundle["labels"][int(c)] for c in clusters], index=data.index)
+
+
+def overall_means() -> dict:
+    """Size-weighted mean of each feature across clusters, from the saved metrics.
+
+    Gives a representative "average possession" to seed the interactive
+    classifier without needing the full possession cache on disk.
+    """
+    metrics = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
+    total = sum(c["size"] for c in metrics["clusters"]) or 1
+    return {
+        f: sum(c["size"] * c["means"][f] for c in metrics["clusters"]) / total
+        for f in POSSESSION_FEATURES
+    }
+
+
 if __name__ == "__main__":
     m = train_classifier()
     print(f"Possessions: {m['n_possessions']}  Clusters: {m['n_clusters']}  "

@@ -1,9 +1,25 @@
 """Tests for the tactical cluster labeling (no network, no model fit)."""
 
+import numpy as np
 import pandas as pd
 
 from pitchsense.possessions import POSSESSION_FEATURES
-from pitchsense.tactics import _TRANSITION_LABEL, cluster_centroids, label_clusters
+from pitchsense.tactics import (
+    _TRANSITION_LABEL,
+    cluster_centroids,
+    label_clusters,
+    label_possessions,
+)
+
+
+class _StubModel:
+    """Stand-in clusterer that returns preset cluster ids in order."""
+
+    def __init__(self, clusters):
+        self._clusters = clusters
+
+    def predict(self, X):
+        return np.array(self._clusters[: len(X)])
 
 
 def _centroids(rows: dict) -> pd.DataFrame:
@@ -49,6 +65,15 @@ def test_labeling_is_relative_not_absolute():
     labels = label_clusters(centroids)
     assert labels[1] == "Counter-attack / direct"
     assert labels[0] == "Patient build-up"
+
+
+def test_label_possessions_maps_each_row_to_its_pattern():
+    data = pd.DataFrame({f: [0.0, 0.0, 0.0] for f in POSSESSION_FEATURES})
+    bundle = {"model": _StubModel([2, 0, 1]),
+              "labels": {0: "Build-up", 1: "Counter", 2: "Regain"}}
+    out = label_possessions(bundle, data)
+    assert list(out) == ["Regain", "Build-up", "Counter"]
+    assert list(out.index) == [0, 1, 2]
 
 
 def test_cluster_centroids_average_per_group():
