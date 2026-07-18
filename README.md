@@ -137,7 +137,10 @@ position and height *together*. A logistic regression, additive in its features,
 cannot represent that "corner" interaction; a tree carves it out naturally. So on
 this task the pipeline selects XGBoost as the served post-shot model — the answer
 to the earlier open question of when the tree would earn its place. The model and
-metrics are saved to `models/psxg_*.joblib` and `models/psxg_metrics.json`.
+metrics are saved to `models/psxg_*.joblib` and `models/psxg_metrics.json`, and
+the quiz surfaces it: on a revealed on-target shot it shows the post-shot xG next
+to the pre-shot xG, so a struck-well goal reads as a good finish on top of a good
+chance.
 
 ## Project layout
 
@@ -207,7 +210,10 @@ outcome hidden, you estimate the chance it scores, and it then reveals the actua
 result, the model's xG, and a plain-language explanation of the situation. Your
 estimates are scored against the outcome with the Brier rule and compared to the
 model's own score, so you can see how your intuition stacks up against a model
-trained on real shots.
+trained on real shots. For shots on target it also shows the **post-shot xG**
+beside the pre-shot xG — the chance before the ball was struck next to how likely
+it was to score given where it finished — so a well-placed goal reads clearly as a
+good *finish* on top of a good *chance*.
 
 **🧭 Tactical patterns** — surfaces the possession classifier: the discovered
 clusters with their size and profile, and a live "classify a possession" panel
@@ -430,11 +436,11 @@ The bulk labellers that the explorer tabs rely on (`label_possessions`,
 composes the seed possession from the saved metrics.
 
 The Streamlit flow is checked end-to-end with Streamlit's AppTest harness as a
-manual smoke test — the quiz (guessing, revealing, next shot, and saving a
-qualifying score to the leaderboard) and both explorer tabs (the tactical-pattern
-sliders driving a live classification, and the player-role lookup). It needs the
-data caches and trained models present and so is run by hand rather than in the
-pytest suite.
+manual smoke test — the quiz (guessing, revealing, seeing pre- and post-shot xG,
+next shot, and saving a qualifying score to the leaderboard) and both explorer
+tabs (the tactical-pattern sliders driving a live classification, and the
+player-role lookup). It needs the data caches and trained models present and so is
+run by hand rather than in the pytest suite.
 
 Not yet tested end-to-end: the live data fetch (it hits the network) is exercised
 manually via `python -m pitchsense.train`.
