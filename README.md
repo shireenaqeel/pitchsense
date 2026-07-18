@@ -520,18 +520,25 @@ manually via `python -m pitchsense.train`.
 
 ## Roadmap
 
-1. **Data + xG model** (Logistic Regression vs XGBoost, assist-type and
+**All six phases are complete** — the MVP (phases 1–4) and every stretch goal
+(phases 5–6), plus extensions that went beyond the original plan (a post-shot xG
+model and cross-tournament generalisation tests).
+
+1. ✅ **Data + xG model** — Logistic Regression vs XGBoost, assist-type and
    freeze-frame features, multi-tournament data, cross-validated hyperparameter
    search, a leave-one-tournament-out generalisation test, plus a separate
-   post-shot xG model with placement) — done.
-2. **Static pitch visualization** (shot + freeze-frame, annotated with xG) — done.
-3. **Animated replay** of a possession (interpolated ball track) — done.
-4. **Quiz layer**: estimate, compare to the model, explain the gap (Streamlit) — done. **MVP complete.**
-5. **Adaptive difficulty + per-concept progress tracking**: concept tagging,
-   per-concept scoring, weak-area-biased shot selection, progress panel — done.
-6. Stretch: **tactical pattern classifier** (k-means over possessions, labelled
-   into build-up / counter-attack / regain, wired into the replay) — done.
-   **Player-role clustering** (k-means + PCA over behavioural stats, labelled and
-   purity-checked against nominal positions, with a role map) — done.
-   **Leaderboard** (persistent local high-score table, ranked by average points
-   per round with a model-beating tie-break) — done. **All stretch goals shipped.**
+   post-shot xG (PSxG) model with placement.
+2. ✅ **Static pitch visualization** — shot + freeze-frame, annotated with xG.
+3. ✅ **Animated replay** of a possession — interpolated ball track, captioned
+   with its detected tactical pattern.
+4. ✅ **Quiz layer** — estimate, compare to the model, explain the gap, and see
+   pre- and post-shot xG side by side (Streamlit). **MVP complete.**
+5. ✅ **Adaptive difficulty + per-concept progress tracking** — concept tagging,
+   per-concept scoring, weak-area-biased shot selection, progress panel.
+6. ✅ **Stretch** — **tactical pattern classifier** (k-means over possessions,
+   labelled into build-up / counter-attack / regain, wired into the replay);
+   **player-role clustering** (k-means + PCA over behavioural stats, labelled and
+   purity-checked against nominal positions, with a role map); and a
+   **leaderboard** (persistent local high-score table, ranked by average points
+   per round with a model-beating tie-break). All three are also surfaced in the
+   app's explorer tabs. **All stretch goals shipped.**
