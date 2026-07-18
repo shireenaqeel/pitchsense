@@ -28,8 +28,18 @@ from pitchsense.concepts import (
     update_progress,
 )
 from pitchsense.data import load_shots
-from pitchsense.features import FEATURE_COLUMNS, build_feature_frame
+from pitchsense.features import (
+    FEATURE_COLUMNS,
+    build_feature_frame,
+    placement_from_center,
+    placement_height,
+)
 from pitchsense.leaderboard import MIN_ROUNDS, add_score, load_scores, make_entry, top
+from pitchsense.postshot import (
+    ON_TARGET_OUTCOMES,
+    POSTSHOT_FEATURES,
+    PRIMARY_MODEL_PATH as PSXG_MODEL_PATH,
+)
 from pitchsense.quiz import brier_points, explain_shot
 from pitchsense.roles import (
     METRICS_PATH as ROLES_METRICS_PATH,
@@ -69,6 +79,21 @@ def concepts_per_shot(_shots):
 @st.cache_resource
 def load_model():
     return joblib.load(PRIMARY_MODEL_PATH)
+
+
+@st.cache_resource
+def load_psxg_model():
+    """The post-shot xG model, or None if it has not been trained yet."""
+    return joblib.load(PSXG_MODEL_PATH) if PSXG_MODEL_PATH.exists() else None
+
+
+def model_psxg(psxg_model, shot) -> float:
+    """Post-shot xG for a shot, from its pre-shot features plus where it finished."""
+    values = [shot[f] for f in FEATURE_COLUMNS]
+    values.append(placement_from_center(shot["shot_end_location"]))
+    values.append(placement_height(shot["shot_end_location"]))
+    row = pd.DataFrame([values], columns=POSTSHOT_FEATURES)
+    return float(psxg_model.predict_proba(row)[:, 1][0])
 
 
 @st.cache_resource
@@ -221,7 +246,37 @@ def render_quiz():
         c3.metric("Points this round", earned)
 
         st.info(explain_shot(shot, mxg, guess))
+        render_finish_quality(shot, mxg)
         st.button("Next shot", type="primary", on_click=new_round, args=(shot_tags,))
+
+
+def render_finish_quality(shot, mxg: float):
+    """Show post-shot xG (the finish) beside pre-shot xG (the chance).
+
+    Post-shot xG is only defined for shots on target, and only if the model has
+    been trained; otherwise this is a short note or nothing at all.
+    """
+    psxg_model = load_psxg_model()
+    if psxg_model is None:
+        return
+    if shot["shot_outcome"] not in ON_TARGET_OUTCOMES:
+        st.caption("Post-shot xG applies only to shots on target, so it is not shown here.")
+        return
+
+    psxg = model_psxg(psxg_model, shot)
+    p1, p2 = st.columns(2)
+    p1.metric("Pre-shot xG — the chance", f"{mxg:.0%}")
+    p2.metric("Post-shot xG — the finish", f"{psxg:.0%}")
+    if psxg > mxg:
+        verdict = ("Struck better than an average shot from there — the placement "
+                   "made it more likely to score than the chance alone.")
+    else:
+        verdict = ("The finish did not add to the chance — an average shot from "
+                   "there would have been at least as dangerous.")
+    st.caption(
+        "Pre-shot xG rates the chance before the ball was struck; post-shot xG rates "
+        "how likely it was to score given where it actually finished. " + verdict
+    )
 
 
 # --------------------------------------------------------------------------- #
