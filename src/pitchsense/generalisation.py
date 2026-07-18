@@ -40,6 +40,7 @@ TOURNAMENT_NAMES = {
 }
 
 METRICS_PATH = MODEL_DIR / "xg_generalisation.json"
+PSXG_METRICS_PATH = MODEL_DIR / "psxg_generalisation.json"
 
 
 def tournaments_in_order() -> list:
@@ -85,16 +86,19 @@ def summarise(per_model: dict, tournaments: list) -> dict:
     return summary
 
 
-def evaluate(n_iter: int = XGB_SEARCH_ITER, cv_folds: int = CV_FOLDS,
-             random_state: int = 42, search: bool = True) -> dict:
-    data = label_tournaments(build_feature_frame(load_shots()), match_tournament_map())
-    tournaments = tournaments_in_order()
+def leave_one_out(data, feature_columns, target_column,
+                  n_iter: int = XGB_SEARCH_ITER, cv_folds: int = CV_FOLDS,
+                  random_state: int = 42, search: bool = True) -> dict:
+    """Train on three tournaments, test on the fourth, for each held-out in turn.
 
+    ``data`` must already carry a ``tournament`` column. Returns
+    ``{model: {tournament: metrics}}``; shared by the pre-shot and post-shot runs.
+    """
     per_model = {}
-    for held in tournaments:
+    for held in tournaments_in_order():
         train, test = holdout_split(data, held)
-        X_tr, y_tr = train[FEATURE_COLUMNS], train[TARGET_COLUMN]
-        X_te, y_te = test[FEATURE_COLUMNS], test[TARGET_COLUMN]
+        X_tr, y_tr = train[feature_columns], train[target_column]
+        X_te, y_te = test[feature_columns], test[target_column]
         cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=random_state)
 
         for name, (estimator, space, kind) in build_searches().items():
@@ -108,39 +112,57 @@ def evaluate(n_iter: int = XGB_SEARCH_ITER, cv_folds: int = CV_FOLDS,
             entry["n"] = int(len(test))
             entry["goals"] = int(y_te.sum())
             per_model.setdefault(name, {})[held] = entry
+    return per_model
 
-    summary = summarise(per_model, tournaments)
+
+def _write_report(per_model, data, feature_columns, cv_folds, n_iter, path) -> dict:
     metrics = {
-        "tournaments": tournaments,
+        "tournaments": tournaments_in_order(),
         "n_shots": int(len(data)),
-        "features": FEATURE_COLUMNS,
+        "features": feature_columns,
         "cv_folds": cv_folds,
         "search_iter": n_iter,
-        "models": summary,
+        "models": summarise(per_model, tournaments_in_order()),
     }
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    with open(METRICS_PATH, "w") as f:
+    with open(path, "w") as f:
         json.dump(metrics, f, indent=2)
     return metrics
 
 
-def _random_split_reference() -> dict:
-    """Random-split test AUCs from the standard training run, for comparison."""
-    if not XG_METRICS_PATH.exists():
+def evaluate(n_iter: int = XGB_SEARCH_ITER, cv_folds: int = CV_FOLDS,
+             random_state: int = 42, search: bool = True) -> dict:
+    """Leave-one-tournament-out for the pre-shot xG model."""
+    data = label_tournaments(build_feature_frame(load_shots()), match_tournament_map())
+    per_model = leave_one_out(data, FEATURE_COLUMNS, TARGET_COLUMN,
+                              n_iter, cv_folds, random_state, search)
+    return _write_report(per_model, data, FEATURE_COLUMNS, cv_folds, n_iter, METRICS_PATH)
+
+
+def evaluate_postshot(n_iter: int = XGB_SEARCH_ITER, cv_folds: int = CV_FOLDS,
+                      random_state: int = 42, search: bool = True) -> dict:
+    """Leave-one-tournament-out for the post-shot xG (PSxG) model."""
+    from pitchsense.postshot import POSTSHOT_FEATURES, build_postshot_frame
+
+    data = label_tournaments(build_postshot_frame(load_shots()), match_tournament_map())
+    per_model = leave_one_out(data, POSTSHOT_FEATURES, "is_goal",
+                              n_iter, cv_folds, random_state, search)
+    return _write_report(per_model, data, POSTSHOT_FEATURES, cv_folds, n_iter, PSXG_METRICS_PATH)
+
+
+def _random_split_reference(train_metrics_path) -> dict:
+    """Random-split test AUCs from a standard training run, for comparison."""
+    if not train_metrics_path.exists():
         return {}
-    m = json.loads(XG_METRICS_PATH.read_text(encoding="utf-8"))
+    m = json.loads(train_metrics_path.read_text(encoding="utf-8"))
     return {name: s["test"]["roc_auc"] for name, s in m["models"].items()}
 
 
-if __name__ == "__main__":
-    metrics = evaluate()
+def _print_report(metrics: dict, reference: dict, title: str) -> None:
     tournaments = metrics["tournaments"]
-    reference = _random_split_reference()
-
-    print(f"Leave-one-tournament-out xG, {metrics['n_shots']} shots "
+    print(f"Leave-one-tournament-out {title}, {metrics['n_shots']} shots "
           f"across {len(tournaments)} tournaments (ROC AUC on the held-out one)\n")
-    header = "held out ->".ljust(22) + "".join(t.rjust(18) for t in tournaments) + "  mean   (random)"
-    print(header)
+    print("held out ->".ljust(22) + "".join(t.rjust(18) for t in tournaments) + "  mean   (random)")
     for name, s in metrics["models"].items():
         row = name.ljust(22)
         for t in tournaments:
@@ -149,4 +171,19 @@ if __name__ == "__main__":
         row += f"{s['mean_roc_auc']:>7.3f}"
         row += f"{('   ' + format(ref, '.3f')) if ref is not None else '':>10}"
         print(row)
-    print(f"\nSaved report to {METRICS_PATH}")
+
+
+if __name__ == "__main__":
+    import sys
+
+    which = sys.argv[1] if len(sys.argv) > 1 else "xg"
+    if which == "psxg":
+        from pitchsense.postshot import METRICS_PATH as PSXG_TRAIN_METRICS
+        metrics = evaluate_postshot()
+        _print_report(metrics, _random_split_reference(PSXG_TRAIN_METRICS),
+                      "post-shot xG (PSxG), on-target shots")
+        print(f"\nSaved report to {PSXG_METRICS_PATH}")
+    else:
+        metrics = evaluate()
+        _print_report(metrics, _random_split_reference(XG_METRICS_PATH), "xG")
+        print(f"\nSaved report to {METRICS_PATH}")

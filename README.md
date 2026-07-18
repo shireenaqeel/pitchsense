@@ -165,8 +165,23 @@ geometry do not change between competitions. XGBoost edges the linear model on t
 average and in three of the four held-out tournaments, a slightly firmer signal
 for the tree than the single random split gave. Euro 2024 is the hardest to
 predict for both models, with the fewest goals (98) and so the noisiest estimate.
-The evaluation changes no served model; it writes a report to
-`models/xg_generalisation.json`. Run it with `python -m pitchsense.generalisation`.
+
+The **post-shot model** stands up to the same test on its on-target shots:
+
+| Held out → | WC 2018 | WC 2022 | Euro 2020 | Euro 2024 | Mean | Random split |
+|---|--:|--:|--:|--:|--:|--:|
+| Logistic Regression | 0.763 | 0.777 | 0.761 | 0.758 | **0.765** | 0.758 |
+| XGBoost | 0.787 | 0.868 | 0.884 | 0.859 | **0.849** | 0.855 |
+
+Again no gap — XGBoost's leave-one-out mean (0.849) matches its random-split score
+— and, more tellingly, **XGBoost beats the linear model on every one of the four
+held-out tournaments**. That confirms the placement non-linearity it exploits is a
+real, transferable effect, not an artefact of one lucky split: the value of a
+top-corner finish carries over to competitions the model never trained on.
+
+Neither evaluation changes a served model; each writes a report to
+`models/xg_generalisation.json` / `models/psxg_generalisation.json`. Run them with
+`python -m pitchsense.generalisation` and `python -m pitchsense.generalisation psxg`.
 
 ## Project layout
 
@@ -392,8 +407,9 @@ PYTHONPATH=src python -m pitchsense.train
 # Train the post-shot xG (PSxG) model, which adds shot-placement features
 PYTHONPATH=src python -m pitchsense.postshot
 
-# Leave-one-tournament-out generalisation report for the xG model
+# Leave-one-tournament-out generalisation report (xG, and PSxG with `psxg`)
 PYTHONPATH=src python -m pitchsense.generalisation
+PYTHONPATH=src python -m pitchsense.generalisation psxg
 
 # Render an example shot with its freeze-frame to docs/example_shot.png
 PYTHONPATH=src python -m pitchsense.viz
@@ -490,9 +506,9 @@ manually via `python -m pitchsense.train`.
   and finer passing-lane geometry could still be mined. The pre-shot model has
   largely plateaued at ~0.79 AUC on these features.
 - The served models train on a single random train/test split with a fixed seed.
-  The leave-one-tournament-out test above shows this does not hide a generalisation
-  gap for pre-shot xG, but the PSxG model has not been put through the same
-  cross-tournament check.
+  The leave-one-tournament-out test above shows this hides no generalisation gap
+  for either the pre-shot or the post-shot model, but both are still single-split
+  models — a nested-CV point estimate would carry tighter error bars.
 - The tactical clusters are unsupervised and unlabelled by nature: their names
   are a reasonable reading of the centroids, not validated against coached
   ground truth, and the silhouette (0.26) reflects genuinely overlapping play.
