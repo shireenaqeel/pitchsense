@@ -129,14 +129,15 @@ def _score(y_true, prob) -> dict:
     }
 
 
-def train_and_evaluate(test_size: float = 0.2, random_state: int = 42,
-                       cv_folds: int = CV_FOLDS, n_iter: int = XGB_SEARCH_ITER,
-                       search: bool = True) -> dict:
-    shots = load_shots()
-    data = build_feature_frame(shots)
-    X = data[FEATURE_COLUMNS]
-    y = data[TARGET_COLUMN]
+def compare_models(X, y, model_paths, primary_path, test_size=0.2, random_state=42,
+                   cv_folds=CV_FOLDS, n_iter=XGB_SEARCH_ITER, search=True):
+    """Tune, cross-validate, and evaluate both models on ``X``/``y``.
 
+    Shared by the pre-shot and post-shot pipelines: both use the same search and
+    the same two model families, differing only in their feature set and target.
+    Saves each tuned model to ``model_paths`` and the CV-selected primary to
+    ``primary_path``. Returns ``(results, calibrations, primary_model)``.
+    """
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state, stratify=y
     )
@@ -163,12 +164,26 @@ def train_and_evaluate(test_size: float = 0.2, random_state: int = 42,
         prob = best.predict_proba(X_test)[:, 1]
         results[name] = {"best_params": best_params, "cv": cv_metrics, "test": _score(y_test, prob)}
         calibrations[name] = calibration_table(y_test.to_numpy(), prob)
-        joblib.dump(best, MODEL_PATHS[name])
+        joblib.dump(best, model_paths[name])
 
     # Pick the primary model by cross-validated log loss — a more robust choice
     # than a single split — and promote it to the stable serving path.
     primary_model = min(results, key=lambda n: results[n]["cv"]["log_loss"]["mean"])
-    joblib.dump(joblib.load(MODEL_PATHS[primary_model]), PRIMARY_MODEL_PATH)
+    joblib.dump(joblib.load(model_paths[primary_model]), primary_path)
+    return results, calibrations, primary_model
+
+
+def train_and_evaluate(test_size: float = 0.2, random_state: int = 42,
+                       cv_folds: int = CV_FOLDS, n_iter: int = XGB_SEARCH_ITER,
+                       search: bool = True) -> dict:
+    shots = load_shots()
+    data = build_feature_frame(shots)
+    X = data[FEATURE_COLUMNS]
+    y = data[TARGET_COLUMN]
+
+    results, calibrations, primary_model = compare_models(
+        X, y, MODEL_PATHS, PRIMARY_MODEL_PATH, test_size, random_state, cv_folds, n_iter, search
+    )
 
     metrics = {
         "n_shots": int(len(data)),

@@ -10,11 +10,16 @@ from pitchsense.features import (
     build_feature_frame,
     defenders_behind_ball,
     defenders_in_cone,
+    defenders_in_lane,
     distance_to_goal,
     keeper_distance_to_ball,
     keeper_distance_to_goal,
+    keeper_in_cone,
     nearest_defender_distance,
+    placement_from_center,
+    placement_height,
     shot_angle,
+    shot_end_point,
 )
 
 
@@ -122,6 +127,39 @@ def test_keeper_defaults_when_absent():
     ff = [_opponent(105.0, 40.0)]  # no keeper in the frame
     assert keeper_distance_to_goal(ff) == 0.0            # assume on the line
     assert keeper_distance_to_ball(100.0, 40.0, ff) == distance_to_goal(100.0, 40.0)
+
+
+def test_keeper_in_cone_true_when_central_false_when_wide():
+    central = [_keeper(116.0, 40.0)]
+    assert keeper_in_cone(100.0, 40.0, central) == 1
+    wide = [_keeper(116.0, 10.0)]     # keeper pulled far to one side
+    assert keeper_in_cone(100.0, 40.0, wide) == 0
+    assert keeper_in_cone(100.0, 40.0, [_opponent(110.0, 40.0)]) == 0  # no keeper
+
+
+def test_defenders_in_lane_counts_only_blockers_on_the_line():
+    ff = [
+        _opponent(110.0, 40.0),   # right on the line to goal centre -> blocks
+        _opponent(110.0, 50.0),   # 10 yards off the line -> does not block
+        _opponent(95.0, 40.0),    # behind the shooter -> not goal-side
+        _keeper(119.0, 40.0),     # keeper excluded
+    ]
+    assert defenders_in_lane(100.0, 40.0, ff) == 1
+
+
+def test_shot_end_point_handles_2d_3d_and_missing():
+    assert shot_end_point([120.0, 40.0]) == (120.0, 40.0, 0.0)
+    assert shot_end_point([120.0, 37.0, 2.5]) == (120.0, 37.0, 2.5)
+    assert shot_end_point(None) is None
+
+
+def test_placement_features():
+    # Ball finishes near the side netting, 2.3m high.
+    assert placement_from_center([120.0, 37.0, 2.3]) == 3.0
+    assert placement_height([120.0, 37.0, 2.3]) == 2.3
+    # Missing end location defaults to centre / ground.
+    assert placement_from_center(None) == 0.0
+    assert placement_height(None) == 0.0
 
 
 def test_new_freeze_frame_features_in_built_frame():

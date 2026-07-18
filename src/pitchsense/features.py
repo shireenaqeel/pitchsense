@@ -152,6 +152,69 @@ def keeper_distance_to_ball(x: float, y: float, freeze_frame) -> float:
     return math.hypot(gk[0] - x, gk[1] - y)
 
 
+# Half-width (yards) of the direct shooting lane — roughly a player's reach to
+# either side of the straight line from the ball to the centre of the goal.
+LANE_HALF_WIDTH = 1.5
+
+
+def keeper_in_cone(x: float, y: float, freeze_frame) -> int:
+    """Whether the opposing keeper sits inside the shot cone (guards the lane)."""
+    gk = goalkeeper_location(freeze_frame)
+    if gk is None:
+        return 0
+    return int(_point_in_triangle(
+        gk[0], gk[1], x, y, LEFT_POST[0], LEFT_POST[1], RIGHT_POST[0], RIGHT_POST[1]
+    ))
+
+
+def _point_to_segment(px, py, ax, ay, bx, by) -> float:
+    """Shortest distance from point p to the line segment ab."""
+    abx, aby = bx - ax, by - ay
+    ab2 = abx * abx + aby * aby
+    if ab2 == 0:
+        return math.hypot(px - ax, py - ay)
+    t = max(0.0, min(1.0, ((px - ax) * abx + (py - ay) * aby) / ab2))
+    cx, cy = ax + t * abx, ay + t * aby
+    return math.hypot(px - cx, py - cy)
+
+
+def defenders_in_lane(x: float, y: float, freeze_frame,
+                      half_width: float = LANE_HALF_WIDTH) -> int:
+    """Opponents sitting in the direct shooting lane from the ball to goal centre.
+
+    Narrower than ``defenders_in_cone`` (the whole goal-mouth triangle): this
+    counts only opponents close to the straight line to the middle of the goal,
+    and only those goal-side of the shot, so it captures a directly blocked shot.
+    """
+    count = 0
+    for px, py, is_keeper in _iter_opponents(freeze_frame):
+        if is_keeper or px <= x:
+            continue
+        if _point_to_segment(px, py, x, y, GOAL_CENTER[0], GOAL_CENTER[1]) <= half_width:
+            count += 1
+    return count
+
+
+def shot_end_point(end_location):
+    """``(x, y, z)`` of a shot's end location; height defaults to 0 when absent."""
+    if not isinstance(end_location, (list, np.ndarray)) or len(end_location) < 2:
+        return None
+    z = float(end_location[2]) if len(end_location) >= 3 else 0.0
+    return (float(end_location[0]), float(end_location[1]), z)
+
+
+def placement_from_center(end_location) -> float:
+    """How far the shot finished from the goal's central line (toward a post)."""
+    point = shot_end_point(end_location)
+    return abs(point[1] - GOAL_CENTER[1]) if point else 0.0
+
+
+def placement_height(end_location) -> float:
+    """Height the shot finished at (0 = along the ground)."""
+    point = shot_end_point(end_location)
+    return point[2] if point else 0.0
+
+
 def build_feature_frame(shots: pd.DataFrame) -> pd.DataFrame:
     """Build the model-ready table of engineered features plus the target.
 
@@ -180,6 +243,12 @@ def build_feature_frame(shots: pd.DataFrame) -> pd.DataFrame:
     df["keeper_dist_to_ball"] = df.apply(
         lambda r: keeper_distance_to_ball(r["x"], r["y"], r["shot_freeze_frame"]), axis=1
     )
+    df["keeper_in_cone"] = df.apply(
+        lambda r: keeper_in_cone(r["x"], r["y"], r["shot_freeze_frame"]), axis=1
+    )
+    df["defenders_in_lane"] = df.apply(
+        lambda r: defenders_in_lane(r["x"], r["y"], r["shot_freeze_frame"]), axis=1
+    )
     df["is_header"] = (df["shot_body_part"] == "Head").astype(int)
     df["is_first_time"] = df["shot_first_time"].fillna(False).astype(int)
     df["is_one_on_one"] = df["shot_one_on_one"].fillna(False).astype(int)
@@ -202,6 +271,8 @@ FEATURE_COLUMNS = [
     "defenders_behind_ball",
     "keeper_dist_to_goal",
     "keeper_dist_to_ball",
+    "keeper_in_cone",
+    "defenders_in_lane",
     "is_header",
     "is_first_time",
     "is_one_on_one",

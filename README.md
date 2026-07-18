@@ -34,6 +34,8 @@ For every shot we engineer features from the event and its freeze-frame (the sna
 | `defenders_behind_ball` | Opponent outfielders goal-side of the shot (between ball and goal line) |
 | `keeper_dist_to_goal` | How far the goalkeeper was off their line |
 | `keeper_dist_to_ball` | Distance from the keeper to the shot — small values are near one-on-ones |
+| `keeper_in_cone` | Whether the keeper is inside the shot cone, guarding the direct lane |
+| `defenders_in_lane` | Opponents on the straight line from the ball to the goal centre |
 | `is_header` | Headed shot |
 | `is_first_time` | Struck first time, without a touch to control |
 | `is_one_on_one` | One-on-one against the keeper |
@@ -66,35 +68,36 @@ Each model is reported two ways: **cross-validated** metrics (mean ± std over t
 five training folds, which show stability) and a **held-out test set** never
 touched during the search (an unbiased final number).
 
-Trained across four tournaments (5,606 open-play shots, 9.0% goal rate, 15
+Trained across four tournaments (5,606 open-play shots, 9.0% goal rate, 17
 features):
 
 | Model | CV log loss | CV ROC AUC | Test log loss | Test ROC AUC |
 |---|--:|--:|--:|--:|
-| **Logistic Regression** (served) | 0.252 ± 0.010 | 0.787 ± 0.026 | 0.261 | 0.766 |
-| XGBoost | 0.253 ± 0.008 | 0.787 ± 0.024 | 0.256 | 0.778 |
+| **Logistic Regression** (served) | 0.252 ± 0.010 | 0.788 ± 0.026 | 0.262 | 0.767 |
+| XGBoost | 0.253 ± 0.008 | 0.788 ± 0.024 | 0.255 | 0.779 |
 
-Two things stand out. First, **the freeze-frame features helped every metric**.
-Adding the four geometry features — nearest defender, defenders behind the ball,
-and the two goalkeeper distances — lifted cross-validated AUC from ~0.778 to
-**0.787** and cut CV log loss from 0.256 to ~0.252, and it also tightened the
-fold-to-fold spread (XGBoost's AUC std fell from ±0.033 to ±0.024). On the
-held-out test set XGBoost now reaches **0.778 AUC** — the top of the range the
-old model plateaued below, and inside StatsBomb's own ~0.78–0.80. This is the
-lesson the previous step predicted: with the models already tuned, the real gain
-came from better *features*, not a fancier algorithm.
+The story here is the freeze-frame. The first batch of geometry features —
+nearest defender, defenders behind the ball, and the two goalkeeper distances —
+lifted cross-validated AUC from ~0.778 to **0.788** and cut CV log loss from
+0.256 to ~0.252, and it also tightened the fold-to-fold spread. That is the
+lesson an earlier step predicted: with the models already tuned, the gain came
+from better *features*, not a fancier algorithm. A second batch (the two
+shooting-lane features, `keeper_in_cone` and `defenders_in_lane`) barely moved the
+numbers — honestly reported — because that signal was already largely captured by
+the defender counts and keeper distances; they are kept as cheap, interpretable
+additions but were not the win.
 
-Second, **cross-validation still shows the two models are essentially tied**:
-their CV metrics are identical to two decimals and sit well within one standard
-deviation of each other. Logistic regression wins the CV-log-loss tie by the
-barest margin and stays the served model, though XGBoost is now clearly ahead on
-the held-out test set (0.778 vs 0.766 AUC) — a hint the tree may pull away with
-still-richer features. Reporting both keeps the choice honest rather than reading
-too much into a single split.
+**Cross-validation shows the two models are essentially tied**: their CV metrics
+are identical to two decimals and sit well within one standard deviation of each
+other. Logistic regression wins the CV-log-loss tie by the barest margin and stays
+the served model, though XGBoost is a shade ahead on the held-out test set (0.779
+vs 0.767 AUC). Reporting both keeps the choice honest rather than reading too much
+into a single split. (Where the tree *does* pull clear is the post-shot model
+below.)
 
 The served model stays well calibrated: across ten probability buckets its
 predictions track the actual goal rate closely, with only mild over-prediction in
-the highest bucket (predicts ~0.33, actual ~0.29). For reference, StatsBomb's own
+the highest bucket (predicts ~0.34, actual ~0.30). For reference, StatsBomb's own
 production xG reaches ~0.78–0.80 AUC using still more features, so this model now
 sits right in that range.
 
@@ -103,6 +106,39 @@ the served model is copied to `models/xg_baseline.joblib`, and the full comparis
 — best hyperparameters, per-fold CV metrics, and test metrics — is written to
 `models/xg_metrics.json` on every training run.
 
+## Post-shot xG (PSxG)
+
+The model above is *pre-shot* xG: it rates the chance from the situation before
+the ball is struck. A natural companion question is "given the shot was taken and
+placed **there**, how likely was it to score?" — **post-shot** xG (PSxG), which
+measures shot execution and goalkeeping. The difference is one feature: where the
+ball ended up. `shot_end_location` gives the ball's lateral position in the goal
+and its height, which become `placement_from_center` and `placement_height`.
+
+That placement is the *result* of the shot, not a condition known before it, so
+it is deliberately kept **out** of the served xG model — folding it in would be
+target leakage and stop the model being a real "expected goals". Instead it lives
+in a separate model (`postshot.py`) that reuses the pre-shot features and adds the
+two placement features on top. By convention PSxG is defined only over **on-target**
+shots (goals and saves — the ones a keeper had to deal with), since an off-target
+shot never had a placement that could score. That leaves 1,753 shots at a 28.9%
+goal rate. The same cross-validated search as the pre-shot model is reused.
+
+| Model | CV log loss | CV ROC AUC | Test log loss | Test ROC AUC |
+|---|--:|--:|--:|--:|
+| Logistic Regression | 0.500 ± 0.019 | 0.779 ± 0.022 | 0.533 | 0.758 |
+| **XGBoost** (served) | **0.424 ± 0.029** | **0.851 ± 0.025** | **0.420** | **0.855** |
+
+**This is where the gradient-boosted tree finally pulls clear of the linear
+model** — by a wide margin (0.851 vs 0.779 CV AUC), not the coin-flip of the
+pre-shot task. Placement is strongly non-linear: a shot into either top corner is
+lethal, one straight at the keeper is not, and the value depends on lateral
+position and height *together*. A logistic regression, additive in its features,
+cannot represent that "corner" interaction; a tree carves it out naturally. So on
+this task the pipeline selects XGBoost as the served post-shot model — the answer
+to the earlier open question of when the tree would earn its place. The model and
+metrics are saved to `models/psxg_*.joblib` and `models/psxg_metrics.json`.
+
 ## Project layout
 
 ```
@@ -110,7 +146,8 @@ src/pitchsense/
   data.py       # competition config + load & cache StatsBomb shots
   build_data.py # single-pass fetch that builds all three caches at once
   features.py   # pitch geometry + feature engineering (pure, tested)
-  train.py      # train, evaluate, and save the baseline model
+  train.py      # tune, cross-validate, evaluate, and save the pre-shot xG model
+  postshot.py   # post-shot xG (PSxG): adds shot-placement features
   pitch.py      # draw a football pitch in StatsBomb coordinates
   viz.py        # render a shot + its freeze-frame, annotated with model xG
   sequences.py  # build an interpolated ball track from a possession
@@ -316,8 +353,11 @@ pip install -r requirements.txt
 # Fetch every match once and build all three data caches (slow, run first)
 PYTHONPATH=src python -m pitchsense.build_data
 
-# Train and evaluate the baseline xG model (uses the cache; fetches if absent)
+# Train and evaluate the pre-shot xG model (uses the cache; fetches if absent)
 PYTHONPATH=src python -m pitchsense.train
+
+# Train the post-shot xG (PSxG) model, which adds shot-placement features
+PYTHONPATH=src python -m pitchsense.postshot
 
 # Render an example shot with its freeze-frame to docs/example_shot.png
 PYTHONPATH=src python -m pitchsense.viz
@@ -344,9 +384,13 @@ pytest
   defenders-in-cone point-in-triangle logic, including teammate/opponent handling,
   missing freeze-frames, and numpy-array locations from the parquet cache.
 - Freeze-frame features: nearest defender (closest opponent, keeper excluded, and
-  the open-space default), defenders behind the ball (goal-side only), and the two
-  goalkeeper distances (found by position, with sensible defaults when absent),
-  including their assembly into the built feature frame.
+  the open-space default), defenders behind the ball (goal-side only), the two
+  goalkeeper distances (found by position, with sensible defaults when absent), the
+  keeper-in-cone and defenders-in-lane logic (point-in-triangle and point-to-segment
+  geometry), including their assembly into the built feature frame.
+- Post-shot xG: the placement features (lateral offset and height, from 2D or 3D
+  end locations and the missing case) and the post-shot frame — that only on-target
+  shots are kept and that the placement columns are added on top of the pre-shot set.
 - Feature frame assembly: penalties dropped, goals labelled, header flag, and the
   assist-type features (present and defaulted-to-zero cases).
 - Training helpers: the cross-validation summary (per-fold mean/std with the
@@ -402,13 +446,13 @@ manually via `python -m pitchsense.train`.
   would shift again if trained on league data; the club competitions in StatsBomb
   open data are also mostly single-team (heavily Barcelona), which would bias a
   role or tactics model, so they were deliberately left out.
-- The freeze-frame is now read for the keeper's position and defender spacing, but
-  still not exhaustively: passing/receiving lanes, defender velocities (not in the
-  snapshot), and the shot's placement within the goal mouth are all unused. These
-  are where the tree might pull clear of the linear model.
-- The gradient-boosted tree is marginally ahead on held-out data but not on
-  cross-validation, so which model is "best" is genuinely close; the served choice
-  could flip with a different seed or more features.
+- The freeze-frame is read for keeper position, defender spacing, and shooting
+  lanes, but not exhaustively: defender velocities are simply not in the snapshot,
+  and finer passing-lane geometry could still be mined. The pre-shot model has
+  largely plateaued at ~0.79 AUC on these features.
+- The pre-shot xG and PSxG models train on independent train/test splits with a
+  fixed seed; there is no held-out *season* or *tournament* to test generalisation
+  across competitions, which would be a stronger test than a random split.
 - The tactical clusters are unsupervised and unlabelled by nature: their names
   are a reasonable reading of the centroids, not validated against coached
   ground truth, and the silhouette (0.26) reflects genuinely overlapping play.
@@ -420,8 +464,9 @@ manually via `python -m pitchsense.train`.
 
 ## Roadmap
 
-1. **Data + xG model** (Logistic Regression vs XGBoost, assist-type features,
-   multi-tournament data, cross-validated hyperparameter search) — done.
+1. **Data + xG model** (Logistic Regression vs XGBoost, assist-type and
+   freeze-frame features, multi-tournament data, cross-validated hyperparameter
+   search, plus a separate post-shot xG model with placement) — done.
 2. **Static pitch visualization** (shot + freeze-frame, annotated with xG) — done.
 3. **Animated replay** of a possession (interpolated ball track) — done.
 4. **Quiz layer**: estimate, compare to the model, explain the gap (Streamlit) — done. **MVP complete.**
