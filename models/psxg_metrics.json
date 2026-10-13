@@ -1,0 +1,91 @@
+{
+  "n_shots": 1753,
+  "n_goals": 507,
+  "goal_rate": 0.289218482601255,
+  "features": [
+    "distance",
+    "angle",
+    "defenders_in_cone",
+    "nearest_defender_dist",
+    "defenders_behind_ball",
+    "keeper_dist_to_goal",
+    "keeper_dist_to_ball",
+    "keeper_in_cone",
+    "defenders_in_lane",
+    "is_header",
+    "is_first_time",
+    "is_one_on_one",
+    "under_pressure",
+    "from_open_play",
+    "assist_cross",
+    "assist_cutback",
+    "assist_through_ball",
+    "placement_from_center",
+    "placement_height"
+  ],
+  "placement_features": [
+    "placement_from_center",
+    "placement_height"
+  ],
+  "test_size": 0.2,
+  "cv_folds": 5,
+  "search_iter": 40,
+  "search_scoring": "neg_log_loss",
+  "primary_model": "xgboost",
+  "models": {
+    "logistic_regression": {
+      "best_params": {
+        "clf__C": 10.0
+      },
+      "cv": {
+        "roc_auc": {
+          "mean": 0.778571313356908,
+          "std": 0.02176342374649227
+        },
+        "log_loss": {
+          "mean": 0.49959376879972367,
+          "std": 0.019140659231323486
+        },
+        "brier": {
+          "mean": 0.16320840768044836,
+          "std": 0.00674066599393487
+        }
+      },
+      "test": {
+        "roc_auc": 0.7576974564926373,
+        "log_loss": 0.5330217927637996,
+        "brier": 0.17598380777596337
+      }
+    },
+    "xgboost": {
+      "best_params": {
+        "subsample": 0.9,
+        "n_estimators": 400,
+        "min_child_weight": 1,
+        "max_depth": 3,
+        "learning_rate": 0.02,
+        "gamma": 0.5,
+        "colsample_bytree": 0.8
+      },
+      "cv": {
+        "roc_auc": {
+          "mean": 0.850717228115888,
+          "std": 0.024251825250473005
+        },
+        "log_loss": {
+          "mean": 0.42472609877586365,
+          "std": 0.028456676388987596
+        },
+        "brier": {
+          "mean": 0.1383986532688141,
+          "std": 0.009259212068656717
+        }
+      },
+      "test": {
+        "roc_auc": 0.8560516576108355,
+        "log_loss": 0.4196443557739258,
+        "brier": 0.1384993940591812
+      }
+    }
+  }
+}
