@@ -13,9 +13,12 @@ env/
 # Environment / secrets
 .env
 
-# Data and model artifacts (regenerated, not committed)
-data/
-models/
+# Data and model artifacts. The built caches and trained models are committed
+# so the deployed app starts without re-downloading 230 matches; the local
+# leaderboard is per-machine state.
+data/*
+!data/*.parquet
+data/leaderboard.json
 
 # Editor / OS
 .vscode/

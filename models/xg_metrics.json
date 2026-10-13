@@ -1,0 +1,85 @@
+{
+  "n_shots": 5606,
+  "n_goals": 507,
+  "goal_rate": 0.09043881555476276,
+  "features": [
+    "distance",
+    "angle",
+    "defenders_in_cone",
+    "nearest_defender_dist",
+    "defenders_behind_ball",
+    "keeper_dist_to_goal",
+    "keeper_dist_to_ball",
+    "keeper_in_cone",
+    "defenders_in_lane",
+    "is_header",
+    "is_first_time",
+    "is_one_on_one",
+    "under_pressure",
+    "from_open_play",
+    "assist_cross",
+    "assist_cutback",
+    "assist_through_ball"
+  ],
+  "test_size": 0.2,
+  "cv_folds": 5,
+  "search_iter": 40,
+  "search_scoring": "neg_log_loss",
+  "primary_model": "logistic_regression",
+  "models": {
+    "logistic_regression": {
+      "best_params": {
+        "clf__C": 0.1
+      },
+      "cv": {
+        "roc_auc": {
+          "mean": 0.7881632093781274,
+          "std": 0.025861521704312097
+        },
+        "log_loss": {
+          "mean": 0.2524450052379961,
+          "std": 0.010357316385856321
+        },
+        "brier": {
+          "mean": 0.07068331535553629,
+          "std": 0.0028418093836578987
+        }
+      },
+      "test": {
+        "roc_auc": 0.7669436875127278,
+        "log_loss": 0.26167472881240394,
+        "brier": 0.07327076267222261
+      }
+    },
+    "xgboost": {
+      "best_params": {
+        "subsample": 0.9,
+        "n_estimators": 600,
+        "min_child_weight": 1,
+        "max_depth": 2,
+        "learning_rate": 0.02,
+        "gamma": 1.0,
+        "colsample_bytree": 0.8
+      },
+      "cv": {
+        "roc_auc": {
+          "mean": 0.7862520033977756,
+          "std": 0.0269071779117635
+        },
+        "log_loss": {
+          "mean": 0.25293335020542146,
+          "std": 0.010069978054042299
+        },
+        "brier": {
+          "mean": 0.07078341692686081,
+          "std": 0.002344792317609871
+        }
+      },
+      "test": {
+        "roc_auc": 0.7809078655172079,
+        "log_loss": 0.25497967004776,
+        "brier": 0.07112841308116913
+      }
+    }
+  }
+}

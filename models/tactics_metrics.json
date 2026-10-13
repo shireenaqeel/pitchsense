@@ -1,0 +1,70 @@
+{
+  "n_possessions": 29675,
+  "n_clusters": 3,
+  "silhouette": 0.2614952355798595,
+  "features": [
+    "duration",
+    "n_actions",
+    "n_passes",
+    "start_x",
+    "net_forward",
+    "path_length",
+    "directness",
+    "forward_speed",
+    "width",
+    "ends_in_shot"
+  ],
+  "clusters": [
+    {
+      "cluster": 0,
+      "label": "Patient build-up",
+      "size": 5876,
+      "means": {
+        "duration": 57.264,
+        "n_actions": 33.346,
+        "n_passes": 17.566,
+        "start_x": 42.472,
+        "net_forward": 56.037,
+        "path_length": 460.794,
+        "directness": 0.139,
+        "forward_speed": 1.152,
+        "width": 69.185,
+        "ends_in_shot": 0.229
+      }
+    },
+    {
+      "cluster": 1,
+      "label": "Counter-attack / direct",
+      "size": 12686,
+      "means": {
+        "duration": 11.932,
+        "n_actions": 7.352,
+        "n_passes": 4.042,
+        "start_x": 30.616,
+        "net_forward": 56.413,
+        "path_length": 118.817,
+        "directness": 0.521,
+        "forward_speed": 6.352,
+        "width": 35.942,
+        "ends_in_shot": 0.126
+      }
+    },
+    {
+      "cluster": 2,
+      "label": "Quick regain / transition",
+      "size": 11113,
+      "means": {
+        "duration": 17.206,
+        "n_actions": 10.598,
+        "n_passes": 5.849,
+        "start_x": 71.358,
+        "net_forward": 12.032,
+        "path_length": 158.321,
+        "directness": 0.072,
+        "forward_speed": 0.683,
+        "width": 50.006,
+        "ends_in_shot": 0.123
+      }
+    }
+  ]
+}
