@@ -10,8 +10,9 @@ from matplotlib.patches import Arc, Circle, Rectangle
 
 PITCH_LENGTH = 120.0
 PITCH_WIDTH = 80.0
-LINE_COLOR = "#c8c8c8"
+LINE_COLOR = "#e8efe8"
 PITCH_COLOR = "#3a7d44"
+STRIPE_COLOR = "#35733f"
 
 
 def draw_pitch(ax=None, pitch_color: str = PITCH_COLOR, line_color: str = LINE_COLOR):
@@ -19,11 +20,19 @@ def draw_pitch(ax=None, pitch_color: str = PITCH_COLOR, line_color: str = LINE_C
     if ax is None:
         _, ax = plt.subplots(figsize=(12, 8))
 
-    ax.set_facecolor(pitch_color)
     ax.set_xlim(-3, PITCH_LENGTH + 3)
     ax.set_ylim(-3, PITCH_WIDTH + 3)
     ax.set_aspect("equal")
     ax.axis("off")
+
+    # The turf is a patch rather than the axes facecolor, which ``axis("off")``
+    # would hide. Alternate mowing stripes every 10 yards; anything layered on
+    # the grass (e.g. a heatmap) can sit between zorder 0 and the lines at 1.
+    ax.add_patch(Rectangle((-3, -3), PITCH_LENGTH + 6, PITCH_WIDTH + 6,
+                           facecolor=pitch_color, edgecolor="none", zorder=0))
+    for stripe_x in range(0, int(PITCH_LENGTH), 20):
+        ax.add_patch(Rectangle((stripe_x, 0), 10, PITCH_WIDTH, facecolor=STRIPE_COLOR,
+                               edgecolor="none", zorder=0))
 
     line = {"color": line_color, "lw": 2, "zorder": 1}
 

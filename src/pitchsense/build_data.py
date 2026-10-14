@@ -3,7 +3,9 @@
 Each of the three models draws on the same raw StatsBomb events. Fetching those
 events once per model would download every match three times, so this module
 walks the configured competitions once, and from each match's events assembles
-the shot table, the possession table, and the player aggregates together. Run it
+the shot table, the possession table, and the player aggregates together, then
+caches the match context (teams, stage, score) and player display names the quiz
+uses to tell each shot's story. Run it
 before training to populate the caches; the individual loaders then find their
 cache and skip the network entirely.
 
@@ -18,6 +20,7 @@ from pitchsense.data import (
     all_match_ids,
     shots_from_events,
 )
+from pitchsense.matches import build_caches as build_match_caches
 from pitchsense.players import (
     combine_aggregates,
     finalize_features,
@@ -51,6 +54,7 @@ def build_all_caches() -> dict:
     shots.to_parquet(SHOTS_CACHE, index=False)
     possessions.to_parquet(POSSESSIONS_CACHE, index=False)
     players.to_parquet(PLAYERS_CACHE, index=False)
+    build_match_caches()
 
     return {"matches": len(match_ids), "shots": len(shots),
             "possessions": len(possessions), "players": len(players)}
