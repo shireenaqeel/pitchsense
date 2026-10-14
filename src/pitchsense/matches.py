@@ -31,7 +31,8 @@ def tournament_label(competition: str, season: str) -> str:
     the part after the dash.
     """
     name = competition.split(" - ")[-1]
-    short = {"FIFA World Cup": "World Cup", "UEFA Euro": "Euro"}.get(name, name)
+    short = {"FIFA World Cup": "World Cup", "UEFA Euro": "Euro",
+             "African Cup of Nations": "AFCON", "Copa America": "Copa América"}.get(name, name)
     return f"{short} {season}"
 
 

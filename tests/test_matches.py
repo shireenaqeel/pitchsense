@@ -55,3 +55,8 @@ def test_name_map_prefers_nickname():
                             "player_nickname": ["Neymar", None]})
     assert build_name_map(lineups) == {"Neymar da Silva Santos Júnior": "Neymar",
                                        "Kevin De Bruyne": "Kevin De Bruyne"}
+
+
+def test_tournament_label_shortens_new_tournaments():
+    assert tournament_label("Africa - African Cup of Nations", "2023") == "AFCON 2023"
+    assert tournament_label("South America - Copa America", "2024") == "Copa América 2024"

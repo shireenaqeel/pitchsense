@@ -11,15 +11,30 @@ Unlike a typical xG dashboard, the whole point here is a real pipeline: **real m
 ## Data
 
 - **Source:** [StatsBomb Open Data](https://github.com/statsbomb/open-data) — free, public, real professional match events.
-- **Competitions used:** four major men's international tournaments — FIFA World
-  Cup 2018 and 2022, and UEFA Euro 2020 and 2024 — **230 matches** in total. They
-  are all national-team knockout tournaments with full event data and shot
-  freeze-frames, so they are stylistically comparable and share the same feature
-  coverage. The set is configured in one place (`COMPETITIONS` in `data.py`).
+- **International tournaments (every model):** six men's national-team
+  tournaments — FIFA World Cup 2018 and 2022, UEFA Euro 2020 and 2024, Copa
+  América 2024 and AFCON 2023 — **314 matches**. All have full event data and shot
+  freeze-frames. They feed every model and are the only shots the quiz shows.
+  Configured in `COMPETITIONS` in `data.py`.
+- **Club seasons (xG and PSxG training only):** the complete 2015/16 Premier
+  League, La Liga, Serie A and Ligue 1 seasons — **1,517 matches, 37,888 shots**,
+  every team in each league. The physics of a shot (distance, angle, bodies in the
+  way) is the same in a league match as in a World Cup, so these add volume to the
+  two shot models. They are kept out of player roles, tactics and ratings because
+  those describe the players and teams *in the tournaments*. Pooling a player's
+  2015/16 club season with their World Cup games would mix contexts, and the much
+  larger club sample would swamp the tournament play. Configured in
+  `CLUB_COMPETITIONS`. Other club seasons in the open data are mostly one team's
+  matches (Barcelona, PSG, Leverkusen) and are left out so no one side dominates.
+- **Metrics are international only.** Club shots only ever join the *training*
+  side: the held-out test set and every cross-validation validation fold are drawn
+  from tournament shots, so every reported number describes tournament football.
 - Data is pulled on demand via `statsbombpy` and cached locally under `data/`
-  (git-ignored, not committed). Because all three models read the same raw
-  events, `python -m pitchsense.build_data` fetches every match once and writes
-  all three caches together, rather than downloading the matches three times.
+  (git-ignored). `python -m pitchsense.build_data` fetches every international
+  match once and writes all the caches together. `python -m pitchsense.data club`
+  fetches the club shots into `data/club_shots/`, one file per season, so an
+  interrupted download resumes where it stopped. GitHub rate-limits a download of
+  this size, and the fetch backs off and retries when it does.
 
 ## Approach (Phase 1 — baseline xG model)
 
@@ -66,45 +81,47 @@ cross-validated log loss; it is not hardcoded.
 
 Each model is reported two ways: **cross-validated** metrics (mean ± std over the
 five training folds, which show stability) and a **held-out test set** never
-touched during the search (an unbiased final number).
+touched during the search (an unbiased final number). Both are measured on
+international shots only.
 
-Trained across four tournaments (5,606 open-play shots, 9.0% goal rate, 17
-features):
+Trained on 7,509 international open-play shots (8.9% goal rate) plus 37,488 club
+shots used only for training, 17 features:
 
 | Model | CV log loss | CV ROC AUC | Test log loss | Test ROC AUC |
 |---|--:|--:|--:|--:|
-| **Logistic Regression** (served) | 0.252 ± 0.010 | 0.788 ± 0.026 | 0.262 | 0.767 |
-| XGBoost | 0.253 ± 0.008 | 0.788 ± 0.024 | 0.255 | 0.779 |
+| Logistic Regression | 0.254 ± 0.005 | 0.780 ± 0.010 | 0.245 | 0.809 |
+| **XGBoost** (served) | **0.247 ± 0.008** | **0.791 ± 0.017** | **0.237** | **0.820** |
 
-The story here is the freeze-frame. The first batch of geometry features —
-nearest defender, defenders behind the ball, and the two goalkeeper distances —
-lifted cross-validated AUC from ~0.778 to **0.788** and cut CV log loss from
-0.256 to ~0.252, and it also tightened the fold-to-fold spread. That is the
-lesson an earlier step predicted: with the models already tuned, the gain came
-from better *features*, not a fancier algorithm. A second batch (the two
-shooting-lane features, `keeper_in_cone` and `defenders_in_lane`) barely moved the
-numbers — honestly reported — because that signal was already largely captured by
-the defender counts and keeper distances; they are kept as cheap, interpretable
-additions but were not the win.
+**More data is what finally separated the two models.** On the tournament shots
+alone the two were tied (CV log loss 0.253 vs 0.254, CV AUC 0.773 vs 0.775). The
+club seasons multiply the training set about six-fold, and XGBoost turns that
+into a clear lead while logistic regression barely moves. A linear model has
+little more to learn from extra shots of the same kind; a tree can use the volume
+to fit interactions such as distance × angle. The pipeline therefore now serves
+XGBoost (the choice is still made by CV log loss, not hardcoded). The single
+random test split happens to be an easy one (test AUC above CV AUC for both
+models), so the leave-one-tournament-out numbers below are the fairer estimate.
 
-**Cross-validation shows the two models are essentially tied**: their CV metrics
-are identical to two decimals and sit well within one standard deviation of each
-other. Logistic regression wins the CV-log-loss tie by the barest margin and stays
-the served model, though XGBoost is a shade ahead on the held-out test set (0.779
-vs 0.767 AUC). Reporting both keeps the choice honest rather than reading too much
-into a single split. (Where the tree *does* pull clear is the post-shot model
-below.)
+How the pre-shot model got here:
+
+| Step | Data | Served model | Held-out-tournament AUC |
+|---|---|---|--:|
+| Baseline features | 4 tournaments | Logistic Regression | ~0.78 |
+| + freeze-frame features | 4 tournaments | Logistic Regression | 0.780 (XGBoost 0.787) |
+| + Copa América, AFCON | 6 tournaments | XGBoost (by a hair) | 0.786 |
+| + 2015/16 club seasons | 6 tournaments + 4 leagues | **XGBoost** | **0.795** |
 
 The served model stays well calibrated: across ten probability buckets its
-predictions track the actual goal rate closely, with only mild over-prediction in
-the highest bucket (predicts ~0.34, actual ~0.30). For reference, StatsBomb's own
-production xG reaches ~0.78–0.80 AUC using still more features, so this model now
-sits right in that range.
+predictions track the actual goal rate closely (top bucket predicts 0.40, actual
+0.38). StatsBomb's own production xG reaches ~0.78–0.80 AUC using still more
+features, so this model sits in that range.
 
 Both tuned models are saved (`models/xg_logreg.joblib`, `models/xg_xgboost.joblib`),
 the served model is copied to `models/xg_baseline.joblib`, and the full comparison
-— best hyperparameters, per-fold CV metrics, and test metrics — is written to
-`models/xg_metrics.json` on every training run.
+— best hyperparameters, per-fold CV metrics, test metrics, and the number of club
+training shots — is written to `models/xg_metrics.json` on every training run.
+`python -m pitchsense.train --no-club` trains on the tournaments alone, for
+comparison.
 
 ## Post-shot xG (PSxG)
 
@@ -121,16 +138,17 @@ target leakage and stop the model being a real "expected goals". Instead it live
 in a separate model (`postshot.py`) that reuses the pre-shot features and adds the
 two placement features on top. By convention PSxG is defined only over **on-target**
 shots (goals and saves — the ones a keeper had to deal with), since an off-target
-shot never had a placement that could score. That leaves 1,753 shots at a 28.9%
-goal rate. The same cross-validated search as the pre-shot model is reused.
+shot never had a placement that could score. That leaves 2,325 international
+shots at a 28.7% goal rate, plus 12,394 on-target club shots for training only.
+The same cross-validated search as the pre-shot model is reused.
 
 | Model | CV log loss | CV ROC AUC | Test log loss | Test ROC AUC |
 |---|--:|--:|--:|--:|
-| Logistic Regression | 0.500 ± 0.019 | 0.779 ± 0.022 | 0.533 | 0.758 |
-| **XGBoost** (served) | **0.424 ± 0.029** | **0.851 ± 0.025** | **0.420** | **0.855** |
+| Logistic Regression | 0.503 ± 0.014 | 0.764 ± 0.016 | 0.507 | 0.768 |
+| **XGBoost** (served) | **0.396 ± 0.013** | **0.872 ± 0.009** | **0.383** | **0.882** |
 
 **This is where the gradient-boosted tree finally pulls clear of the linear
-model** — by a wide margin (0.851 vs 0.779 CV AUC), not the coin-flip of the
+model** — by a wide margin (0.872 vs 0.764 CV AUC), not the coin-flip of the
 pre-shot task. Placement is strongly non-linear: a shot into either top corner is
 lethal, one straight at the keeper is not, and the value depends on lateral
 position and height *together*. A logistic regression, additive in its features,
@@ -146,48 +164,56 @@ chance.
 
 A random train/test split lets shots from every tournament appear in both halves,
 so a model could quietly learn tournament-specific quirks and still score well. A
-stricter test holds out one whole tournament, tunes and trains on the other three,
-and evaluates on the unseen one — repeated with each tournament held out in turn
-(leave-one-tournament-out). The search is re-run inside each fold on the three
-training tournaments only, so the held-out one never influences model selection.
+stricter test holds out one whole tournament, tunes and trains on the other five
+(plus the club seasons, which are never held out), and evaluates on the unseen
+one — repeated with each tournament held out in turn (leave-one-tournament-out).
+The search is re-run inside each fold, validating on tournament shots only, so the
+held-out tournament never influences model selection. It runs twice, with and
+without the club data, to measure what the club data is actually worth.
 
-| Held out → | WC 2018 | WC 2022 | Euro 2020 | Euro 2024 | Mean | Random split |
-|---|--:|--:|--:|--:|--:|--:|
-| Logistic Regression | 0.770 | 0.806 | 0.782 | 0.763 | **0.780** | 0.767 |
-| XGBoost | 0.781 | 0.809 | 0.796 | 0.763 | **0.787** | 0.779 |
+Pre-shot xG, ROC AUC on the held-out tournament:
 
-(ROC AUC on the held-out tournament.) The reassuring result: **there is no
-generalisation gap** — the leave-one-tournament-out mean is as good as the
-random-split score, so the model is not riding competition-specific quirks and
-would transfer to a tournament it has never seen. That is what you would hope for
-from features grounded in the physics of a shot — distance, angle, and defender
-geometry do not change between competitions. XGBoost edges the linear model on the
-average and in three of the four held-out tournaments, a slightly firmer signal
-for the tree than the single random split gave. Euro 2024 is the hardest to
-predict for both models, with the fewest goals (98) and so the noisiest estimate.
+| Held out → | WC 2018 | WC 2022 | Euro 2020 | Euro 2024 | Copa 2024 | AFCON 2023 | Mean |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| Logistic Regression, tournaments only | 0.772 | 0.805 | 0.782 | 0.763 | 0.781 | 0.781 | 0.781 |
+| Logistic Regression, + club | 0.775 | 0.807 | 0.787 | 0.767 | 0.776 | 0.791 | 0.784 |
+| XGBoost, tournaments only | 0.777 | 0.807 | 0.797 | 0.757 | 0.788 | 0.791 | 0.786 |
+| **XGBoost, + club** | **0.786** | **0.815** | **0.797** | **0.782** | 0.786 | **0.808** | **0.795** |
+
+Adding the club seasons lifts XGBoost from 0.786 to **0.795** mean AUC and cuts
+its mean held-out log loss from 0.2495 to 0.2448. It improves on four of the six
+tournaments, ties on Euro 2020 and is a hair lower on Copa América (0.786 vs
+0.788). The biggest gain is on Euro 2024 (+0.025), previously the hardest
+tournament to predict. Logistic regression gains only +0.003, as you would expect
+from a linear model that was already saturated. The club data helps because
+league shots *do* transfer to tournaments; if they did not, adding 37,000 of them
+would have hurt here.
 
 The **post-shot model** stands up to the same test on its on-target shots:
 
-| Held out → | WC 2018 | WC 2022 | Euro 2020 | Euro 2024 | Mean | Random split |
-|---|--:|--:|--:|--:|--:|--:|
-| Logistic Regression | 0.763 | 0.777 | 0.761 | 0.758 | **0.765** | 0.758 |
-| XGBoost | 0.787 | 0.868 | 0.884 | 0.859 | **0.849** | 0.855 |
+| Held out → | WC 2018 | WC 2022 | Euro 2020 | Euro 2024 | Copa 2024 | AFCON 2023 | Mean |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| Logistic Regression, + club | 0.749 | 0.787 | 0.764 | 0.755 | 0.728 | 0.778 | 0.760 |
+| XGBoost, tournaments only | 0.784 | 0.878 | 0.894 | 0.872 | 0.866 | 0.889 | 0.864 |
+| **XGBoost, + club** | 0.763 | **0.892** | **0.898** | **0.883** | **0.896** | **0.903** | **0.872** |
 
-Again no gap — XGBoost's leave-one-out mean (0.849) matches its random-split score
-— and, more tellingly, **XGBoost beats the linear model on every one of the four
-held-out tournaments**. That confirms the placement non-linearity it exploits is a
-real, transferable effect, not an artefact of one lucky split: the value of a
-top-corner finish carries over to competitions the model never trained on.
+Club data lifts the post-shot XGBoost from 0.864 to **0.872** mean AUC (log loss
+0.410 → 0.404). World Cup 2018 is the exception: it drops from 0.784 to 0.763.
+That tournament has the weakest post-shot scores either way, so its placement data
+may differ from the others, but this has not been investigated. XGBoost still
+beats the linear model on every held-out tournament, confirming that the
+top-corner non-linearity it exploits is a real, transferable effect.
 
-Neither evaluation changes a served model; each writes a report to
-`models/xg_generalisation.json` / `models/psxg_generalisation.json`. Run them with
-`python -m pitchsense.generalisation` and `python -m pitchsense.generalisation psxg`.
+Neither evaluation changes a served model. Each writes a report to
+`models/xg_generalisation.json` / `models/psxg_generalisation.json` (with club
+data) and `*_intl_only.json` (without). Run them with
+`python -m pitchsense.generalisation [psxg] [--no-club]`.
 
 ## Project layout
 
 ```
 src/pitchsense/
-  data.py       # competition config + load & cache StatsBomb shots
+  data.py       # competition config + load & cache StatsBomb shots (international + club)
   build_data.py # single-pass fetch that builds all three caches at once
   features.py   # pitch geometry + feature engineering (pure, tested)
   train.py      # tune, cross-validate, evaluate, and save the pre-shot xG model
@@ -197,14 +223,19 @@ src/pitchsense/
   viz.py        # render a shot + its freeze-frame, annotated with model xG
   sequences.py  # build an interpolated ball track from a possession
   animate.py    # render a possession as an animated replay (GIF)
-  quiz.py       # scoring and explanation for predict-and-compare
+  quiz.py       # scoring, Beginner chance bands, and explanation for the quiz
+  explain.py    # per-shot "why" from the linear model's feature contributions
+  matches.py    # match context + player display names for each shot's story
+  sandbox.py    # build a made-up chance and score it through the real pipeline
+  lessons.py    # bite-sized lessons: explain, spot the better chance, practise
   concepts.py   # concept tagging, per-concept progress, adaptive shot selection
   leaderboard.py # persistent local high-score table (pure, tested)
   possessions.py # possession -> tactical feature vector (pure, tested)
   tactics.py    # cluster possessions into tactical patterns (k-means)
   players.py    # player -> behavioural feature vector (pure, tested)
   roles.py      # cluster players into roles (k-means + PCA role map)
-streamlit_app.py  # interactive quiz UI
+  ratings.py    # per-player effectiveness & discipline, percentiled within role
+streamlit_app.py  # the app: lessons, quiz, sandbox, explorers
 tests/          # unit tests for the geometry, features, and rendering
 data/           # cached raw data (git-ignored)
 models/         # trained models + metrics (git-ignored)
@@ -241,35 +272,63 @@ trained, the replay is captioned with the pattern it detects for the possession
 
 ## Interactive app
 
-The pieces above come together in a Streamlit app with three tabs.
+The pieces above come together in a Streamlit app built to make learning to read
+a chance *fun*: real shots with real stories, short lessons, and a sandbox to
+play with the model directly.
 
 ```bash
 streamlit run streamlit_app.py
 ```
 
-**🎯 Predict the shot** — the quiz. It shows a real shot's freeze-frame with the
-outcome hidden, you estimate the chance it scores, and it then reveals the actual
-result, the model's xG, and a plain-language explanation of the situation. Your
-estimates are scored against the outcome with the Brier rule and compared to the
-model's own score, so you can see how your intuition stacks up against a model
-trained on real shots. For shots on target it also shows the **post-shot xG**
-beside the pre-shot xG — the chance before the ball was struck next to how likely
-it was to score given where it finished — so a well-placed goal reads clearly as a
-good *finish* on top of a good *chance*.
+A **Beginner / Expert** toggle in the sidebar changes how you answer, how you are
+scored, and how much technical detail you see. Beginners *name* the chance
+(🎲 Speculative · 🤏 Half chance · 👍 Good chance · 🔥 Big chance · 😱 Sitter) and
+score by matching the model's band. That gives consistent feedback, where scoring
+against the noisy 0/1 outcome would punish a correctly read long shot that happened
+to fly in. Experts give an exact percentage, scored with the Brier rule against the
+real outcome and compared with the model's own score. The bands follow the served
+model's xG distribution and each carries a representative probability.
 
-**🧭 Tactical patterns** — surfaces the possession classifier: the discovered
-clusters with their size and profile, and a live "classify a possession" panel
-where a few sliders (passes, duration, upfield yards and speed) drive the trained
-model and it names the pattern in real time.
+**🎓 Learn**: eight two-minute lessons (what xG is, distance, angle, bodies in the
+way, headers, one-on-ones, pressure, the final ball). Each lesson explains one idea
+in plain language, then asks you to **spot the better chance** between two
+situations built in the sandbox, which the model then rates. It finishes with three
+real shots tagged with that concept. Every lesson also quotes the real goal rate for
+its concept from the data.
 
-**🧑‍🤝‍🧑 Player roles** — surfaces the role clustering: the PCA role map, each
-cluster's size, positional purity and behavioural profile, and a player lookup
-that shows the role the model puts any player in next to the position they were
-listed at (Messi and Ronaldo, for instance, both land in the winger cluster).
+**🎯 Shot quiz**: free play over every shot. Each shot comes with its story: the
+player (by the name fans know, e.g. *Neymar* rather than his full registered name),
+both teams, the tournament and stage, and the minute. The final score stays hidden
+until the reveal so it can't give the answer away. The reveal shows the outcome, the
+model's rating as "N in 100 shots like this go in", and **why the model rated it
+that way**. The served XGBoost model's log-odds split exactly into per-feature
+contributions (its TreeSHAP values; a linear model's coefficients work the same
+way if one is served). These are grouped into
+football ideas (distance, angle, bodies in the way, the keeper, …) and shown as
+plain sentences (`explain.py`). A reality check reports how often shots in that band
+actually scored, and on-target shots also show post-shot xG, the quality of the
+finish next to the quality of the chance.
 
-Both explorer tabs degrade gracefully to a "train this model first" hint if the
-model has not been built yet, so the app runs from a fresh clone with only the xG
-model present.
+**🧪 Be the striker**: build a chance (distance, position across the pitch,
+defenders in the way, how tight the marking is, where the keeper is, header, pressure,
+the pass before) and watch the real model rate it live. You can also switch on an
+**xG map** that shows how the chance changes as you move. Each scenario becomes a
+synthetic StatsBomb-shaped shot and goes through the same `build_feature_frame` the
+model was trained on, so the sandbox can never drift from the real features
+(`sandbox.py`).
+
+**🧭 How teams attack** and **🧑‍🤝‍🧑 Player roles**: the tactical-pattern and
+player-role models, led by plain-language descriptions and the interactive parts
+(design a move and see what the model calls it; look up whether a player plays their
+listed position). The cluster tables, silhouette scores and PCA map sit in an
+"Under the hood" expander that opens by default in Expert mode.
+
+**🔧 Under the hood**: the pipeline in brief and the live cross-validated and
+held-out metrics for both xG models.
+
+The explorer tabs degrade gracefully to a "train this model first" hint if a model
+has not been built, and match context falls back to team and minute if
+`data/matches.parquet` is absent (`python -m pitchsense.matches` builds it).
 
 ### Adaptive practice
 
@@ -294,7 +353,8 @@ tie-break. There are no accounts — the board is a single JSON file on disk
 (`data/leaderboard.json`, git-ignored), so it is a local scoreboard rather than
 an online one. The store, ranking, and qualification rules live as pure functions
 in `leaderboard.py` and are unit tested against a temporary file; the quiz shows
-the top ten and reveals a save form once you have qualified.
+the top ten and reveals a save form once you have qualified. The leaderboard lives in Expert mode,
+where every score uses the same Brier scale against the real outcome.
 
 ## Tactical pattern classifier
 
@@ -311,22 +371,23 @@ of passes, how far and how directly it moved upfield (`net_forward`,
 and whether it ended in a shot. Possessions with fewer than three on-ball
 actions are dropped as too short to carry a pattern.
 
-Trained across all four tournaments (**29,675 possessions**, k=3, silhouette
+Trained across all six tournaments (**40,027 possessions**, k=3, silhouette
 **0.26**), the three clusters map cleanly onto the archetypes the project
 targets:
 
 | Pattern | Share | Passes | Duration | Upfield | Directness | Speed | Ends in shot |
 |---|--:|--:|--:|--:|--:|--:|--:|
-| **Counter-attack / direct** | 12,686 | 4.0 | 11.9s | 56.4y | 0.52 | 6.4 y/s | 13% |
-| **Patient build-up** | 5,876 | 17.6 | 57.3s | 56.0y | 0.14 | 1.2 y/s | 23% |
-| **Quick regain / transition** | 11,113 | 5.8 | 17.2s | 12.0y | 0.07 | 0.7 y/s | 12% |
+| **Counter-attack / direct** | 17,212 | 4.0 | 11.8s | 56.8y | 0.53 | 6.5 y/s | 12% |
+| **Patient build-up** | 7,849 | 16.8 | 55.1s | 56.3y | 0.14 | 1.2 y/s | 22% |
+| **Quick regain / transition** | 14,966 | 5.6 | 16.6s | 12.2y | 0.07 | 0.7 y/s | 12% |
 
 The clusters are genuinely distinct and readable: counter-attacks are short,
 fast, and strike straight at goal; build-ups string together ~18 patient passes
 over ~57 seconds and produce the most shots; the third group starts highest up
 the pitch and makes little further ground — balls won high and used quickly. The
 profiles are essentially unchanged from the single-tournament version, which is
-reassuring: the same tactical structure recurs at 3.5× the scale. The silhouette
+reassuring: the same tactical structure recurs at nearly 5× the scale, and adding
+Copa América and AFCON did not shift it. The silhouette
 of 0.26 is modest, as expected for real football possessions that overlap rather
 than fall into clean islands; the value is reported so the k=3 choice can be
 sanity-checked, and the cluster naming is a deterministic, unit-tested ranking of
@@ -351,23 +412,23 @@ it is kept only to label and validate the clusters.
 
 Features are standardised and clustered with k-means; the number of clusters is
 chosen by silhouette, and PCA projects the space to two dimensions for the map
-below. Trained across all four tournaments (**859 regular players**,
-k chosen as **5**, silhouette **0.289**):
+below. Trained across all six tournaments (**1,169 regular players**,
+k chosen as **5**, silhouette **0.287**):
 
 | Role cluster | Players | Position purity | Avg x | Width | Pass share | Def. share | Dribble |
 |---|--:|--:|--:|--:|--:|--:|--:|
-| Goalkeeper | 45 | 100% | 9.9 | 5.8 | 0.37 | 0.05 | 0.000 |
-| Centre-back | 338 | 53% | 50.7 | 17.4 | 0.31 | 0.14 | 0.003 |
-| Full-back | 155 | 88% | 60.1 | 29.1 | 0.32 | 0.17 | 0.007 |
-| Winger | 178 | 38% | 73.4 | 23.6 | 0.24 | 0.16 | 0.019 |
-| Forward | 143 | 41% | 70.4 | 19.1 | 0.21 | 0.23 | 0.011 |
+| Goalkeeper | 63 | 100% | 10.2 | 5.7 | 0.38 | 0.05 | 0.000 |
+| Centre-back | 448 | 55% | 49.9 | 17.2 | 0.31 | 0.15 | 0.003 |
+| Full-back | 206 | 90% | 59.6 | 29.1 | 0.32 | 0.17 | 0.007 |
+| Winger | 245 | 39% | 73.7 | 23.7 | 0.23 | 0.17 | 0.020 |
+| Forward | 207 | 39% | 70.0 | 19.2 | 0.21 | 0.24 | 0.010 |
 
 Each cluster is named by the most common listed position of the players inside
 it, and its **purity** — the share that actually hold that position — is reported
 rather than hidden. Goalkeepers separate perfectly (a clean island in the map)
-and full-backs are 88% pure because their width makes them behaviourally
+and full-backs are 90% pure because their width makes them behaviourally
 distinct. The interesting result is the mixing: the "Centre-back" cluster also
-absorbs 97 defensive and 49 central midfielders, because deep, narrow, pass-heavy
+absorbs 134 defensive and 53 central midfielders, because deep, narrow, pass-heavy
 midfielders *play like* defenders; the more advanced midfielders land instead in
 the winger and forward clusters. There is no clean standalone midfielder cluster
 at k=5 — a genuine finding, not a bug: midfield is a spectrum, and behaviour
@@ -379,10 +440,44 @@ edges up slightly with the larger sample.
 
 The PCA map shows the same story spatially: goalkeepers sit far off on their own,
 and the outfield roles form a continuous defence-to-attack gradient rather than
-crisp islands, which is why the silhouette (0.289) is moderate. The model, PCA
+crisp islands, which is why the silhouette (0.287) is moderate. The model, PCA
 projection, and full per-cluster position breakdown are saved to
 `models/roles_kmeans.joblib` and `models/roles_metrics.json`. Regenerate
 everything, including the map, with `python -m pitchsense.roles`.
+
+## Player effectiveness & discipline
+
+The role clusters say *how* a player plays. A second layer (`ratings.py`) scores
+how *well* and how *cleanly* they play. It is kept out of the clustering on
+purpose: adding quality and foul counts as k-means features would split each role
+into "good" and "bad" versions of itself and blur the role labels. The style
+features and clusters are the same as without it.
+
+Each stat is converted to a **percentile among players of the same detected
+role**, because raw numbers do not compare across roles: a centre-back's median
+pass completion is 88% against 76% for a forward.
+
+| Score | Built from | Direction |
+|---|---|---|
+| **Effectiveness** | pass completion, dribble success, tackle win rate, finishing (non-penalty goals − served-model xG, per shot) | higher = better |
+| **Discipline** | fouls committed and card points (yellow 1, second yellow 2, red 3) per 100 actions | higher = cleaner |
+| Fouls drawn | fouls won per 100 actions | context only, in neither score |
+
+A stat a player has fewer than 10 attempts at (dribbles, tackles, shots) is
+left out of their average rather than guessed. Coverage is 1,169 players for
+pass completion, 316 for tackles, 240 for dribbles and 191 for finishing. The two
+scores are close to independent (Spearman ρ = 0.13), so discipline is not just
+effectiveness under another name. Rates are per 100 actions because the events
+do not record minutes played.
+
+These are transparent percentile scores, **not a trained model**: the data has
+no ground-truth "effective player" label to learn from. Finishing uses the xG
+model on shots it was partly trained on. With 37,000 club shots also in its
+training set the in-sample bias is small, but it is not zero. The player lookup in the app
+shows both scores next to the detected role, and the "Under the hood" expander
+shows role medians. The full table goes to `data/player_ratings.parquet`, and
+the report (coverage, stat correlations, top players) goes to
+`models/ratings_metrics.json`.
 
 ## Setup
 
@@ -401,13 +496,18 @@ pip install -r requirements.txt
 # Fetch every match once and build all three data caches (slow, run first)
 PYTHONPATH=src python -m pitchsense.build_data
 
-# Train and evaluate the pre-shot xG model (uses the cache; fetches if absent)
+# Fetch the 2015/16 club-season shots used to train the xG models (~1h, resumable)
+PYTHONPATH=src python -m pitchsense.data club
+
+# Train and evaluate the pre-shot xG model (uses the cache; fetches if absent;
+# add --no-club to train on the tournaments alone)
 PYTHONPATH=src python -m pitchsense.train
 
 # Train the post-shot xG (PSxG) model, which adds shot-placement features
 PYTHONPATH=src python -m pitchsense.postshot
 
-# Leave-one-tournament-out generalisation report (xG, and PSxG with `psxg`)
+# Leave-one-tournament-out generalisation report (xG, and PSxG with `psxg`;
+# add --no-club for the tournaments-only comparison)
 PYTHONPATH=src python -m pitchsense.generalisation
 PYTHONPATH=src python -m pitchsense.generalisation psxg
 
@@ -422,6 +522,9 @@ PYTHONPATH=src python -m pitchsense.tactics
 
 # Cluster players into roles, print the summary, and render docs/player_roles.png
 PYTHONPATH=src python -m pitchsense.roles
+
+# Score player effectiveness & discipline (needs the roles and xG models)
+PYTHONPATH=src python -m pitchsense.ratings
 
 # Launch the interactive quiz
 streamlit run streamlit_app.py
@@ -475,6 +578,10 @@ pytest
   labeller (dominant position group, purity, and trait-based disambiguation of
   clusters that share a group), plus that silhouette-based `choose_k` recovers a
   known number of separated blobs.
+- Player ratings: pass/dribble/tackle/foul/card counting (unscored pass outcomes
+  and aerial duels excluded, card points from fouls and bad behaviour), NaN for
+  zero attempts, back-compat with older caches, finishing as goals above xG per
+  shot, small-sample masking, within-role percentiles, and both composite scores.
 - Leaderboard: entry construction (averages, model margin, blank-name and
   zero-round guards), the save/load round-trip and parent-directory creation,
   resilience to a missing or corrupt file, and the ranking rules (average first,
@@ -496,15 +603,20 @@ manually via `python -m pitchsense.train`.
 
 ## Known limitations
 
-- International tournaments only (World Cups and Euros). National-team knockout
-  football is somewhat distinct from week-in week-out club play, so the models
-  would shift again if trained on league data; the club competitions in StatsBomb
-  open data are also mostly single-team (heavily Barcelona), which would bias a
-  role or tactics model, so they were deliberately left out.
+- The player, tactics and ratings models use international tournaments only.
+  National-team knockout football is somewhat distinct from week-in week-out club
+  play. The xG models also learn from club shots, but only from 2015/16: the open
+  data has no complete recent league seasons, and the game has shifted since
+  (more pressing, more cutbacks).
+- The club data outweighs the tournament data about five to one in xG training.
+  Held-out tournaments show this helps on average, but the shots are not
+  reweighted, so the model's sense of a "typical" shot leans toward 2015/16
+  league football.
 - The freeze-frame is read for keeper position, defender spacing, and shooting
   lanes, but not exhaustively: defender velocities are simply not in the snapshot,
-  and finer passing-lane geometry could still be mined. The pre-shot model has
-  largely plateaued at ~0.79 AUC on these features.
+  and finer passing-lane geometry could still be mined. On the tournament data
+  alone the pre-shot model had plateaued at ~0.79 AUC; more data, not more
+  features, took it to 0.795.
 - The served models train on a single random train/test split with a fixed seed.
   The leave-one-tournament-out test above shows this hides no generalisation gap
   for either the pre-shot or the post-shot model, but both are still single-split

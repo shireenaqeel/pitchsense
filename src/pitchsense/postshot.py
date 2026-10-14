@@ -32,6 +32,7 @@ from pitchsense.train import (
     SEARCH_SCORING,
     XGB_SEARCH_ITER,
     compare_models,
+    load_club_frame,
 )
 
 # Shots the keeper had to deal with: goals and saves (including tipped onto the
@@ -60,19 +61,23 @@ def build_postshot_frame(shots) -> "pd.DataFrame":
 
 def train_postshot(test_size: float = 0.2, random_state: int = 42,
                    cv_folds: int = CV_FOLDS, n_iter: int = XGB_SEARCH_ITER,
-                   search: bool = True) -> dict:
+                   search: bool = True, include_club: bool = True) -> dict:
     data = build_postshot_frame(load_shots())
     X = data[POSTSHOT_FEATURES]
     y = data["is_goal"]
+    club = load_club_frame(build_postshot_frame) if include_club else None
 
     results, calibrations, primary_model = compare_models(
-        X, y, MODEL_PATHS, PRIMARY_MODEL_PATH, test_size, random_state, cv_folds, n_iter, search
+        X, y, MODEL_PATHS, PRIMARY_MODEL_PATH, test_size, random_state, cv_folds, n_iter, search,
+        X_extra=None if club is None else club[POSTSHOT_FEATURES],
+        y_extra=None if club is None else club["is_goal"],
     )
 
     metrics = {
         "n_shots": int(len(data)),
         "n_goals": int(y.sum()),
         "goal_rate": float(y.mean()),
+        "n_club_shots": 0 if club is None else int(len(club)),
         "features": POSTSHOT_FEATURES,
         "placement_features": PLACEMENT_FEATURES,
         "test_size": test_size,
@@ -89,7 +94,9 @@ def train_postshot(test_size: float = 0.2, random_state: int = 42,
 
 
 if __name__ == "__main__":
-    result = train_postshot()
+    import sys
+
+    result = train_postshot(include_club="--no-club" not in sys.argv[1:])
     m = result["metrics"]
     print(f"On-target shots: {m['n_shots']}  Goals: {m['n_goals']}  "
           f"Goal rate: {m['goal_rate']:.3f}  (a save-vs-goal split)")

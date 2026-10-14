@@ -1,12 +1,12 @@
 {
-  "n_players": 859,
+  "n_players": 1169,
   "n_clusters": 5,
-  "silhouette": 0.289294315551205,
+  "silhouette": 0.28681564474870547,
   "silhouette_by_k": {
-    "5": 0.289,
-    "6": 0.258,
-    "7": 0.246,
-    "8": 0.237
+    "5": 0.287,
+    "6": 0.273,
+    "7": 0.252,
+    "8": 0.229
   },
   "features": [
     "avg_x",
@@ -25,133 +25,135 @@
   "clusters": [
     {
       "cluster": 0,
-      "label": "Goalkeeper",
-      "size": 45,
-      "purity": 1.0,
-      "positions": {
-        "Goalkeeper": 45
-      },
-      "means": {
-        "avg_x": 9.879,
-        "lateral": 5.762,
-        "x_spread": 7.489,
-        "y_spread": 7.943,
-        "pass_share": 0.373,
-        "forward_pass_ratio": 0.977,
-        "avg_pass_length": 40.509,
-        "cross_share": 0.0,
-        "carry_share": 0.195,
-        "dribble_share": 0.0,
-        "shot_share": 0.0,
-        "defensive_share": 0.053
-      }
-    },
-    {
-      "cluster": 1,
       "label": "Winger",
-      "size": 178,
-      "purity": 0.376,
+      "size": 245,
+      "purity": 0.388,
       "positions": {
-        "Winger": 67,
-        "Central mid": 42,
-        "Attacking mid": 24,
-        "Forward": 19,
-        "Full-back": 17,
-        "Defensive mid": 9
+        "Winger": 95,
+        "Central mid": 59,
+        "Attacking mid": 35,
+        "Forward": 25,
+        "Full-back": 21,
+        "Defensive mid": 10
       },
       "means": {
-        "avg_x": 73.362,
-        "lateral": 23.61,
-        "x_spread": 24.879,
-        "y_spread": 22.0,
-        "pass_share": 0.237,
-        "forward_pass_ratio": 0.476,
-        "avg_pass_length": 17.766,
-        "cross_share": 0.059,
-        "carry_share": 0.231,
-        "dribble_share": 0.019,
-        "shot_share": 0.011,
-        "defensive_share": 0.163
-      }
-    },
-    {
-      "cluster": 2,
-      "label": "Forward",
-      "size": 143,
-      "purity": 0.413,
-      "positions": {
-        "Forward": 59,
-        "Central mid": 31,
-        "Winger": 20,
-        "Defensive mid": 18,
-        "Attacking mid": 14,
-        "Full-back": 1
-      },
-      "means": {
-        "avg_x": 70.39,
-        "lateral": 19.102,
-        "x_spread": 24.62,
-        "y_spread": 20.069,
-        "pass_share": 0.206,
-        "forward_pass_ratio": 0.517,
-        "avg_pass_length": 16.635,
-        "cross_share": 0.026,
-        "carry_share": 0.179,
-        "dribble_share": 0.011,
-        "shot_share": 0.015,
-        "defensive_share": 0.234
-      }
-    },
-    {
-      "cluster": 3,
-      "label": "Full-back",
-      "size": 155,
-      "purity": 0.877,
-      "positions": {
-        "Full-back": 136,
-        "Centre-back": 11,
-        "Central mid": 8
-      },
-      "means": {
-        "avg_x": 60.148,
-        "lateral": 29.079,
-        "x_spread": 27.923,
-        "y_spread": 11.348,
-        "pass_share": 0.315,
-        "forward_pass_ratio": 0.572,
-        "avg_pass_length": 19.538,
-        "cross_share": 0.042,
-        "carry_share": 0.223,
-        "dribble_share": 0.007,
-        "shot_share": 0.004,
+        "avg_x": 73.747,
+        "lateral": 23.707,
+        "x_spread": 25.024,
+        "y_spread": 21.582,
+        "pass_share": 0.231,
+        "forward_pass_ratio": 0.482,
+        "avg_pass_length": 17.811,
+        "cross_share": 0.062,
+        "carry_share": 0.227,
+        "dribble_share": 0.02,
+        "shot_share": 0.012,
         "defensive_share": 0.167
       }
     },
     {
-      "cluster": 4,
+      "cluster": 1,
       "label": "Centre-back",
-      "size": 338,
-      "purity": 0.53,
+      "size": 448,
+      "purity": 0.545,
       "positions": {
-        "Centre-back": 179,
-        "Defensive mid": 97,
-        "Central mid": 49,
-        "Full-back": 9,
-        "Attacking mid": 4
+        "Centre-back": 244,
+        "Defensive mid": 134,
+        "Central mid": 53,
+        "Full-back": 10,
+        "Attacking mid": 6,
+        "Forward": 1
       },
       "means": {
-        "avg_x": 50.713,
-        "lateral": 17.365,
-        "x_spread": 21.247,
-        "y_spread": 16.45,
-        "pass_share": 0.314,
-        "forward_pass_ratio": 0.662,
-        "avg_pass_length": 21.175,
+        "avg_x": 49.88,
+        "lateral": 17.162,
+        "x_spread": 21.11,
+        "y_spread": 16.261,
+        "pass_share": 0.313,
+        "forward_pass_ratio": 0.668,
+        "avg_pass_length": 21.581,
         "cross_share": 0.006,
-        "carry_share": 0.244,
+        "carry_share": 0.242,
         "dribble_share": 0.003,
         "shot_share": 0.004,
-        "defensive_share": 0.144
+        "defensive_share": 0.148
+      }
+    },
+    {
+      "cluster": 2,
+      "label": "Goalkeeper",
+      "size": 63,
+      "purity": 1.0,
+      "positions": {
+        "Goalkeeper": 63
+      },
+      "means": {
+        "avg_x": 10.171,
+        "lateral": 5.735,
+        "x_spread": 7.682,
+        "y_spread": 7.962,
+        "pass_share": 0.376,
+        "forward_pass_ratio": 0.98,
+        "avg_pass_length": 40.982,
+        "cross_share": 0.0,
+        "carry_share": 0.193,
+        "dribble_share": 0.0,
+        "shot_share": 0.0,
+        "defensive_share": 0.054
+      }
+    },
+    {
+      "cluster": 3,
+      "label": "Forward",
+      "size": 207,
+      "purity": 0.386,
+      "positions": {
+        "Forward": 80,
+        "Central mid": 45,
+        "Defensive mid": 36,
+        "Winger": 25,
+        "Attacking mid": 19,
+        "Full-back": 2
+      },
+      "means": {
+        "avg_x": 70.04,
+        "lateral": 19.165,
+        "x_spread": 24.399,
+        "y_spread": 20.328,
+        "pass_share": 0.207,
+        "forward_pass_ratio": 0.523,
+        "avg_pass_length": 16.968,
+        "cross_share": 0.027,
+        "carry_share": 0.179,
+        "dribble_share": 0.01,
+        "shot_share": 0.014,
+        "defensive_share": 0.236
+      }
+    },
+    {
+      "cluster": 4,
+      "label": "Full-back",
+      "size": 206,
+      "purity": 0.898,
+      "positions": {
+        "Full-back": 185,
+        "Centre-back": 14,
+        "Central mid": 6,
+        "Winger": 1
+      },
+      "means": {
+        "avg_x": 59.617,
+        "lateral": 29.116,
+        "x_spread": 27.84,
+        "y_spread": 11.029,
+        "pass_share": 0.316,
+        "forward_pass_ratio": 0.581,
+        "avg_pass_length": 19.598,
+        "cross_share": 0.041,
+        "carry_share": 0.223,
+        "dribble_share": 0.007,
+        "shot_share": 0.003,
+        "defensive_share": 0.167
       }
     }
   ]

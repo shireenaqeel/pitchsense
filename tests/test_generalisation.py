@@ -49,3 +49,13 @@ def test_summarise_averages_across_tournaments():
     assert summary["logistic_regression"]["mean_log_loss"] == 0.30
     # the per-tournament detail is preserved
     assert summary["logistic_regression"]["per_tournament"]["A"]["roc_auc"] == 0.80
+
+
+def test_report_path_suffixes_the_international_only_run():
+    from pathlib import Path
+
+    from pitchsense.generalisation import report_path
+
+    base = Path("models/xg_generalisation.json")
+    assert report_path(base, include_club=True) == base
+    assert report_path(base, include_club=False).name == "xg_generalisation_intl_only.json"

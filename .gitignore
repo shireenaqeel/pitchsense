@@ -14,8 +14,9 @@ env/
 .env
 
 # Data and model artifacts. The built caches and trained models are committed
-# so the deployed app starts without re-downloading 230 matches; the local
-# leaderboard is per-machine state.
+# so the deployed app starts without re-downloading 314 matches; the local
+# leaderboard is per-machine state. The club shots (data/club_shots/) are only
+# needed to retrain the xG models, so they stay local.
 data/*
 !data/*.parquet
 data/leaderboard.json
