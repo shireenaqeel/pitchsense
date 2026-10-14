@@ -63,3 +63,105 @@ def explain_shot(shot, model_xg: float, guess: float) -> str:
     )
     parts.append("It was actually a goal." if int(shot["is_goal"]) == 1 else "It did not go in.")
     return " ".join(parts)
+
+
+# --------------------------------------------------------------------------- #
+# Beginner mode: name the chance instead of picking a percentage
+# --------------------------------------------------------------------------- #
+# A 0-100 slider asks a newcomer for a precision they do not have yet. Beginner
+# mode instead asks them to *name* the chance, the way a commentator would. The
+# bands follow the served model's xG distribution over the quiz pool (roughly
+# 48% / 32% / 13% / 6% / 1.5% of shots), and each carries a representative
+# probability so the same Brier scoring still applies under the hood.
+# (label, emoji, lower xG bound, representative probability, plain-language gloss)
+CHANCE_BUCKETS = [
+    ("Speculative", "🎲", 0.00, 0.03, "a hopeful effort — about 1 in 30 go in"),
+    ("Half chance", "🤏", 0.05, 0.08, "a sight of goal, but most miss — about 1 in 12"),
+    ("Good chance", "👍", 0.12, 0.18, "a real opening — roughly 1 in 5"),
+    ("Big chance", "🔥", 0.25, 0.35, "should test the keeper — about 1 in 3"),
+    ("Sitter", "😱", 0.50, 0.65, "you'd expect a goal — 2 in 3 or better"),
+]
+BUCKET_LABELS = [b[0] for b in CHANCE_BUCKETS]
+
+
+def bucket_index(xg: float) -> int:
+    """Index of the chance band an xG value falls into."""
+    idx = 0
+    for i, (_, _, lower, _, _) in enumerate(CHANCE_BUCKETS):
+        if xg >= lower:
+            idx = i
+    return idx
+
+
+def bucket_label(xg: float) -> str:
+    """'Big chance' etc. for an xG value."""
+    return BUCKET_LABELS[bucket_index(xg)]
+
+
+def bucket_probability(label: str) -> float:
+    """The representative scoring probability for a named band."""
+    return CHANCE_BUCKETS[BUCKET_LABELS.index(label)][3]
+
+
+def bucket_points(guess_label: str, model_xg: float) -> int:
+    """Beginner points: did you read the chance the way the model did?
+
+    Scoring a beginner against the 0/1 outcome is noisy — a correctly spotted
+    long shot that happens to fly in would be punished. Against the model's band
+    the feedback is consistent, which is what builds intuition: 100 for the same
+    band, 50 for a neighbouring band, 0 otherwise.
+    """
+    gap = abs(BUCKET_LABELS.index(guess_label) - bucket_index(model_xg))
+    return {0: 100, 1: 50}.get(gap, 0)
+
+
+def out_of_100(xg: float) -> int:
+    """xG as 'goals per 100 shots like this', never below 1 for display."""
+    return max(1, int(round(clamp01(xg) * 100)))
+
+
+def reaction(points: int) -> str:
+    """A short, upbeat reaction to a round's points."""
+    if points >= 90:
+        return "🎯 Spot on!"
+    if points >= 70:
+        return "👌 Good read."
+    if points >= 50:
+        return "🤔 Close-ish."
+    return "😬 Way off — have a look at why."
+
+
+def gap_points(guess: float, model_xg: float) -> int:
+    """How closely an exact estimate matched the model, on the same 0-100 scale."""
+    gap = model_gap(guess, model_xg)
+    for limit, points in ((0.05, 100), (0.10, 75), (0.20, 50)):
+        if gap <= limit:
+            return points
+    return 0
+
+
+def bucket_balance(xgs) -> np.ndarray:
+    """Per-shot selection weights that soften the pile-up of long shots.
+
+    Nearly half the pool is 'Speculative', so uniform sampling would make a
+    beginner's session mostly hopeful 30-yard efforts. Weighting each shot by the
+    inverse square root of its band's size serves big chances and sitters more
+    often without letting the rare bands dominate.
+    """
+    bands = np.array([bucket_index(x) for x in xgs])
+    counts = np.bincount(bands, minlength=len(CHANCE_BUCKETS)).astype(float)
+    return 1.0 / np.sqrt(counts[bands])
+
+
+def outcome_text(outcome: str) -> str:
+    """Friendly wording for StatsBomb shot outcomes."""
+    return {
+        "Goal": "GOAL!",
+        "Saved": "Saved by the keeper",
+        "Saved Off T": "Saved, going wide",
+        "Saved to Post": "Saved onto the post",
+        "Off T": "Off target",
+        "Wayward": "Way off target",
+        "Blocked": "Blocked by a defender",
+        "Post": "Hit the woodwork!",
+    }.get(outcome, str(outcome))

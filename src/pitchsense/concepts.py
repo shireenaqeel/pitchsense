@@ -99,9 +99,19 @@ def shot_weight(concepts, weights: dict) -> float:
     return max((weights.get(concept, 1.0) for concept in concepts), default=1.0)
 
 
-def pick_adaptive(concepts_per_shot, weights: dict, rng) -> int:
-    """Weighted-random index into the shot pool, biased toward weak concepts."""
+def pick_adaptive(concepts_per_shot, weights: dict, rng, boost=None, exclude=()) -> int:
+    """Weighted-random index into the shot pool, biased toward weak concepts.
+
+    ``boost`` optionally multiplies each shot's weight (e.g. to balance easy and
+    hard chances), and indices in ``exclude`` (shots already seen) are skipped
+    unless that would leave nothing to pick.
+    """
     w = np.array([shot_weight(c, weights) for c in concepts_per_shot], dtype=float)
+    if boost is not None:
+        w = w * np.asarray(boost, dtype=float)
+    excluded = [i for i in exclude if 0 <= i < len(w)]
+    if excluded and len(excluded) < len(w):
+        w[excluded] = 0.0
     total = w.sum()
     if total <= 0:
         return int(rng.integers(len(concepts_per_shot)))

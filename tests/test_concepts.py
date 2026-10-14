@@ -89,3 +89,22 @@ def test_pick_adaptive_returns_valid_index():
     rng = np.random.default_rng(1)
     idx = pick_adaptive([["Header"], ["Long range"], ["Close range"]], {}, rng)
     assert idx in (0, 1, 2)
+
+
+def test_pick_adaptive_skips_excluded_shots():
+    rng = np.random.default_rng(0)
+    tags = [["Header"], ["Header"], ["Header"]]
+    picks = {pick_adaptive(tags, {}, rng, exclude=[0, 1]) for _ in range(20)}
+    assert picks == {2}
+
+
+def test_pick_adaptive_ignores_exclusion_when_everything_is_seen():
+    rng = np.random.default_rng(0)
+    assert pick_adaptive([["Header"]], {}, rng, exclude=[0]) == 0
+
+
+def test_pick_adaptive_boost_zero_never_picked():
+    rng = np.random.default_rng(0)
+    tags = [["Header"], ["Header"]]
+    picks = {pick_adaptive(tags, {}, rng, boost=[0.0, 1.0]) for _ in range(20)}
+    assert picks == {1}

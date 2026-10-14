@@ -12,6 +12,7 @@ import matplotlib
 matplotlib.use("Agg")  # render to file without a display
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import Polygon
 
 from pitchsense.pitch import draw_pitch
 
@@ -61,11 +62,36 @@ def _scatter(ax, points, color, label, size=140, edge="#222222"):
     ax.scatter(xs, ys, c=color, s=size, edgecolors=edge, linewidths=1, zorder=4, label=label)
 
 
-def plot_shot(shot, xg=None, ax=None, save_path: Path | None = None, reveal: bool = True):
+def zoom_to_attack(ax, shot_x: float, ys=()) -> None:
+    """Crop the view to the attacking half (wider if the shot came from deeper).
+
+    Vertically it keeps the penalty box plus a margin, widening to include any of
+    the ``ys`` (player and ball heights) that fall outside it.
+    """
+    ax.set_xlim(min(58.0, float(shot_x) - 6.0), 123.0)
+    ax.set_ylim(max(-3.0, min([10.0, *ys]) - 4.0), min(83.0, max([70.0, *ys]) + 4.0))
+
+
+def shade_cone(ax, start) -> None:
+    """Shade the triangle from the ball to both posts — the 'shooting cone'.
+
+    It is the region the xG features count blockers in, so drawing it teaches the
+    idea visually: anyone standing inside it is in the way.
+    """
+    cone = Polygon([(start[0], start[1]), (120, 36), (120, 44)], closed=True,
+                   facecolor=BALL_COLOR, alpha=0.32, edgecolor=BALL_COLOR,
+                   linewidth=1.5, linestyle="--", zorder=2)
+    ax.add_patch(cone)
+
+
+def plot_shot(shot, xg=None, ax=None, save_path: Path | None = None, reveal: bool = True,
+              half: bool = False, cone: bool = False, title: str | None = None):
     """Plot a single shot row (a pandas Series) with its freeze-frame.
 
     When ``reveal`` is False the outcome is hidden: the ball path and the
     outcome/xG in the title are omitted so the shot can be used as a quiz prompt.
+    ``half`` zooms to the attacking half, ``cone`` shades the shooting cone, and
+    ``title`` replaces the default title.
     """
     if ax is None:
         _, ax = plt.subplots(figsize=(12, 8))
@@ -74,6 +100,11 @@ def plot_shot(shot, xg=None, ax=None, save_path: Path | None = None, reveal: boo
     start = shot["location"]
     end = shot.get("shot_end_location")
     groups = split_freeze_frame(shot.get("shot_freeze_frame"))
+    if half:
+        everyone = groups["teammates"] + groups["opponents"] + groups["keeper"]
+        zoom_to_attack(ax, start[0], [p[1] for p in everyone] + [start[1]])
+    if cone:
+        shade_cone(ax, start)
 
     _scatter(ax, groups["teammates"], TEAMMATE_COLOR, "Teammates")
     _scatter(ax, groups["opponents"], OPPONENT_COLOR, "Defenders")
@@ -94,14 +125,14 @@ def plot_shot(shot, xg=None, ax=None, save_path: Path | None = None, reveal: boo
     ax.scatter([start[0]], [start[1]], c=SHOOTER_COLOR, s=200, edgecolors="#000000",
                linewidths=1.5, zorder=7, label="Shot")
 
-    if reveal:
-        outcome = shot.get("shot_outcome", "")
-        title = f"{shot.get('player', 'Shot')} — {outcome}"
+    if title is None and reveal:
+        title = f"{shot.get('player', 'Shot')} — {shot.get('shot_outcome', '')}"
         if xg is not None:
             title += f"  |  model xG: {xg:.2f}"
-    else:
+    elif title is None:
         title = "Where does this shot rank? Estimate the chance it scores."
-    ax.set_title(title, color="#222222", fontsize=13)
+    if title:
+        ax.set_title(title, color="#222222", fontsize=13)
     ax.legend(loc="lower left", framealpha=0.9)
 
     if save_path is not None:
