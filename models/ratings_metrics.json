@@ -1,0 +1,276 @@
+{
+  "n_players": 1169,
+  "effectiveness_stats": [
+    "pass_completion",
+    "dribble_success",
+    "tackle_win",
+    "finishing"
+  ],
+  "discipline_stats": [
+    "fouls_per100",
+    "cards_per100"
+  ],
+  "min_attempts": {
+    "dribble_success": 10,
+    "tackle_win": 10,
+    "finishing": 10
+  },
+  "coverage": {
+    "pass_completion": 1169,
+    "dribble_success": 240,
+    "tackle_win": 316,
+    "finishing": 191
+  },
+  "effectiveness_vs_discipline_spearman": 0.129,
+  "stat_spearman": {
+    "pass_completion": {
+      "pass_completion": 1.0,
+      "dribble_success": 0.185,
+      "tackle_win": 0.077,
+      "finishing": -0.02,
+      "fouls_per100": -0.152,
+      "cards_per100": 0.051
+    },
+    "dribble_success": {
+      "pass_completion": 0.185,
+      "dribble_success": 1.0,
+      "tackle_win": -0.106,
+      "finishing": -0.042,
+      "fouls_per100": -0.112,
+      "cards_per100": -0.001
+    },
+    "tackle_win": {
+      "pass_completion": 0.077,
+      "dribble_success": -0.106,
+      "tackle_win": 1.0,
+      "finishing": 0.093,
+      "fouls_per100": -0.04,
+      "cards_per100": 0.074
+    },
+    "finishing": {
+      "pass_completion": -0.02,
+      "dribble_success": -0.042,
+      "tackle_win": 0.093,
+      "finishing": 1.0,
+      "fouls_per100": 0.034,
+      "cards_per100": -0.024
+    },
+    "fouls_per100": {
+      "pass_completion": -0.152,
+      "dribble_success": -0.112,
+      "tackle_win": -0.04,
+      "finishing": 0.034,
+      "fouls_per100": 1.0,
+      "cards_per100": 0.295
+    },
+    "cards_per100": {
+      "pass_completion": 0.051,
+      "dribble_success": -0.001,
+      "tackle_win": 0.074,
+      "finishing": -0.024,
+      "fouls_per100": 0.295,
+      "cards_per100": 1.0
+    }
+  },
+  "roles": [
+    {
+      "role": "Centre-back",
+      "players": 448,
+      "medians": {
+        "pass_completion": 0.8771,
+        "dribble_success": 0.6569,
+        "tackle_win": 0.6111,
+        "finishing": -0.0163,
+        "fouls_per100": 0.6759,
+        "cards_per100": 0.0978,
+        "fouls_won_per100": 0.4629
+      },
+      "coverage": {
+        "pass_completion": 448,
+        "dribble_success": 24,
+        "tackle_win": 129,
+        "finishing": 39
+      }
+    },
+    {
+      "role": "Forward",
+      "players": 207,
+      "medians": {
+        "pass_completion": 0.7627,
+        "dribble_success": 0.5385,
+        "tackle_win": 0.6154,
+        "finishing": 0.0043,
+        "fouls_per100": 1.2797,
+        "cards_per100": 0.0745,
+        "fouls_won_per100": 1.1211
+      },
+      "coverage": {
+        "pass_completion": 207,
+        "dribble_success": 35,
+        "tackle_win": 49,
+        "finishing": 63
+      }
+    },
+    {
+      "role": "Full-back",
+      "players": 206,
+      "medians": {
+        "pass_completion": 0.7879,
+        "dribble_success": 0.5275,
+        "tackle_win": 0.5455,
+        "finishing": 0.0343,
+        "fouls_per100": 0.7457,
+        "cards_per100": 0.0,
+        "fouls_won_per100": 0.6262
+      },
+      "coverage": {
+        "pass_completion": 206,
+        "dribble_success": 28,
+        "tackle_win": 88,
+        "finishing": 7
+      }
+    },
+    {
+      "role": "Goalkeeper",
+      "players": 63,
+      "medians": {
+        "pass_completion": 0.7203,
+        "dribble_success": null,
+        "tackle_win": null,
+        "finishing": null,
+        "fouls_per100": 0.0,
+        "cards_per100": 0.0,
+        "fouls_won_per100": 0.2066
+      },
+      "coverage": {
+        "pass_completion": 63,
+        "dribble_success": 0,
+        "tackle_win": 0,
+        "finishing": 0
+      }
+    },
+    {
+      "role": "Winger",
+      "players": 245,
+      "medians": {
+        "pass_completion": 0.7723,
+        "dribble_success": 0.5385,
+        "tackle_win": 0.6,
+        "finishing": -0.0007,
+        "fouls_per100": 0.7391,
+        "cards_per100": 0.0,
+        "fouls_won_per100": 1.107
+      },
+      "coverage": {
+        "pass_completion": 245,
+        "dribble_success": 153,
+        "tackle_win": 50,
+        "finishing": 82
+      }
+    }
+  ],
+  "top_effectiveness": [
+    {
+      "player": "Rapha\u00ebl Adelino Jos\u00e9 Guerreiro",
+      "role": "Full-back",
+      "effectiveness": 91.0
+    },
+    {
+      "player": "Mohammed Kudus",
+      "role": "Winger",
+      "effectiveness": 83.5
+    },
+    {
+      "player": "Francisco Rom\u00e1n Alarc\u00f3n Su\u00e1rez",
+      "role": "Winger",
+      "effectiveness": 79.4
+    },
+    {
+      "player": "Youri Tielemans",
+      "role": "Centre-back",
+      "effectiveness": 78.0
+    },
+    {
+      "player": "Daler Kuzyaev",
+      "role": "Winger",
+      "effectiveness": 77.7
+    },
+    {
+      "player": "Seko Fofana",
+      "role": "Winger",
+      "effectiveness": 77.3
+    },
+    {
+      "player": "Khuliso Johnson Mudau",
+      "role": "Full-back",
+      "effectiveness": 77.3
+    },
+    {
+      "player": "Andrej Kramari\u0107",
+      "role": "Winger",
+      "effectiveness": 77.2
+    },
+    {
+      "player": "Salem Mohammed Al Dawsari",
+      "role": "Winger",
+      "effectiveness": 77.0
+    },
+    {
+      "player": "Theo Bernard Fran\u00e7ois Hern\u00e1ndez",
+      "role": "Full-back",
+      "effectiveness": 77.0
+    }
+  ],
+  "top_discipline": [
+    {
+      "player": "Mesut \u00d6zil",
+      "role": "Centre-back",
+      "discipline": 89.3
+    },
+    {
+      "player": "Ethan Pinnock",
+      "role": "Centre-back",
+      "discipline": 89.3
+    },
+    {
+      "player": "Trent Sainsbury",
+      "role": "Centre-back",
+      "discipline": 89.3
+    },
+    {
+      "player": "Christian Guillermo Mart\u00edn Ramos Garagay",
+      "role": "Centre-back",
+      "discipline": 89.3
+    },
+    {
+      "player": "Gen Sh\u014dji",
+      "role": "Centre-back",
+      "discipline": 89.3
+    },
+    {
+      "player": "Niklas S\u00fcle",
+      "role": "Centre-back",
+      "discipline": 89.3
+    },
+    {
+      "player": "A\u00efssa Mandi",
+      "role": "Centre-back",
+      "discipline": 89.3
+    },
+    {
+      "player": "Marek Ham\u0161\u00edk",
+      "role": "Centre-back",
+      "discipline": 89.3
+    },
+    {
+      "player": "Francesco Acerbi",
+      "role": "Centre-back",
+      "discipline": 89.3
+    },
+    {
+      "player": "Luis Francisco Romo Barr\u00f3n",
+      "role": "Centre-back",
+      "discipline": 89.3
+    }
+  ]
+}

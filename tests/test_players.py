@@ -5,6 +5,7 @@ import pandas as pd
 
 from pitchsense.players import (
     PLAYER_FEATURES,
+    PLAYER_STATS,
     combine_aggregates,
     finalize_features,
     player_raw_aggregates,
@@ -119,3 +120,42 @@ def test_missing_location_is_ignored_in_position_average():
     assert r["n_events"] == 2
     assert r["n_loc"] == 1        # only one event had a location
     assert r["sum_x"] == 30.0
+
+
+def test_effectiveness_and_discipline_counts():
+    events = pd.DataFrame([
+        {**_ev(1, "Pass", 30, 40, angle=0.0, length=10.0), "pass_outcome": None},
+        {**_ev(1, "Pass", 30, 40, angle=0.0, length=10.0), "pass_outcome": "Incomplete"},
+        {**_ev(1, "Pass", 30, 40, angle=0.0, length=10.0), "pass_outcome": "Unknown"},   # not scored
+        {**_ev(1, "Dribble", 60, 40), "dribble_outcome": "Complete"},
+        {**_ev(1, "Dribble", 60, 40), "dribble_outcome": "Incomplete"},
+        {**_ev(1, "Duel", 40, 40), "duel_type": "Tackle", "duel_outcome": "Success In Play"},
+        {**_ev(1, "Duel", 40, 40), "duel_type": "Tackle", "duel_outcome": "Lost Out"},
+        {**_ev(1, "Duel", 40, 40), "duel_type": "Aerial Lost"},  # not a tackle
+        {**_ev(1, "Foul Committed", 40, 40), "foul_committed_card": "Yellow Card"},
+        {**_ev(1, "Bad Behaviour", 40, 40), "bad_behaviour_card": "Red Card"},
+        _ev(1, "Foul Won", 40, 40),
+    ])
+    r = player_raw_aggregates(events).iloc[0]
+    assert (r["n_pass_att"], r["n_pass_cmp"]) == (2, 1)
+    assert (r["n_dribble"], r["n_drib_cmp"]) == (2, 1)
+    assert (r["n_tackle"], r["n_tackle_won"]) == (2, 1)
+    assert (r["n_foul"], r["n_foul_won"], r["card_points"]) == (1, 1, 4)
+
+    f = finalize_features(combine_aggregates(player_raw_aggregates(events)),
+                          min_events=1).iloc[0]
+    for key in PLAYER_STATS:
+        assert key in f.index
+    assert f["pass_completion"] == 0.5
+    assert f["tackle_win"] == 0.5
+    assert f["fouls_per100"] == 100 / 11
+    assert f["cards_per100"] == 400 / 11
+
+
+def test_stats_are_nan_without_attempts_and_old_caches_still_combine():
+    raw = player_raw_aggregates(_one_player_match())
+    old = raw.drop(columns=["n_tackle", "n_tackle_won", "n_foul"])  # pre-stats cache
+    f = finalize_features(combine_aggregates(old), min_events=1).iloc[0]
+    assert np.isnan(f["tackle_win"])
+    assert np.isnan(f["dribble_success"])
+    assert f["fouls_per100"] == 0

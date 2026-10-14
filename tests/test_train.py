@@ -37,3 +37,36 @@ def test_build_searches_defines_both_models():
     # the linear model tunes regularisation; the tree tunes depth
     assert "clf__C" in searches["logistic_regression"][1]
     assert "max_depth" in searches["xgboost"][1]
+
+
+def test_international_folds_validate_only_on_international_rows():
+    import numpy as np
+    import pandas as pd
+
+    from pitchsense.train import international_folds
+
+    y_intl = pd.Series([0, 1] * 10)
+    folds = international_folds(y_intl, n_extra=7, cv_folds=5)
+    assert len(folds) == 5
+    club = set(range(20, 27))
+    validated = set()
+    for train, val in folds:
+        assert club <= set(train)            # club rows always train
+        assert not (set(val) & club)         # and are never validated on
+        assert not (set(val) & set(train))
+        validated |= set(val)
+    assert validated == set(range(20))       # every international row validated once
+
+
+def test_with_extra_appends_club_rows_after_international():
+    import pandas as pd
+
+    from pitchsense.train import with_extra
+
+    X = pd.DataFrame({"a": [1, 2]}, index=[10, 11])
+    y = pd.Series([0, 1], index=[10, 11])
+    X_all, y_all, n = with_extra(X, y, pd.DataFrame({"a": [3]}), pd.Series([1]))
+    assert n == 1
+    assert X_all["a"].tolist() == [1, 2, 3]
+    assert list(X_all.index) == [0, 1, 2]
+    assert with_extra(X, y)[2] == 0

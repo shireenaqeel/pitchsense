@@ -1,7 +1,26 @@
 {
-  "n_shots": 5606,
-  "n_goals": 507,
-  "goal_rate": 0.09043881555476276,
+  "n_shots": 7509,
+  "n_goals": 668,
+  "goal_rate": 0.08895991476894394,
+  "n_club_shots": 37488,
+  "club_competitions": [
+    [
+      2,
+      27
+    ],
+    [
+      11,
+      27
+    ],
+    [
+      12,
+      27
+    ],
+    [
+      7,
+      27
+    ]
+  ],
   "features": [
     "distance",
     "angle",
@@ -25,60 +44,60 @@
   "cv_folds": 5,
   "search_iter": 40,
   "search_scoring": "neg_log_loss",
-  "primary_model": "logistic_regression",
+  "primary_model": "xgboost",
   "models": {
     "logistic_regression": {
       "best_params": {
-        "clf__C": 0.1
+        "clf__C": 0.01
       },
       "cv": {
         "roc_auc": {
-          "mean": 0.7881632093781274,
-          "std": 0.025861521704312097
+          "mean": 0.7801870614690196,
+          "std": 0.00975577387039682
         },
         "log_loss": {
-          "mean": 0.2524450052379961,
-          "std": 0.010357316385856321
+          "mean": 0.25376992752428584,
+          "std": 0.00541157302399382
         },
         "brier": {
-          "mean": 0.07068331535553629,
-          "std": 0.0028418093836578987
+          "mean": 0.07110133805678598,
+          "std": 0.0018366781553910113
         }
       },
       "test": {
-        "roc_auc": 0.7669436875127278,
-        "log_loss": 0.26167472881240394,
-        "brier": 0.07327076267222261
+        "roc_auc": 0.8093850920834424,
+        "log_loss": 0.2446881636139958,
+        "brier": 0.06913710424019866
       }
     },
     "xgboost": {
       "best_params": {
-        "subsample": 0.9,
-        "n_estimators": 600,
-        "min_child_weight": 1,
-        "max_depth": 2,
-        "learning_rate": 0.02,
-        "gamma": 1.0,
+        "subsample": 1.0,
+        "n_estimators": 400,
+        "min_child_weight": 10,
+        "max_depth": 4,
+        "learning_rate": 0.1,
+        "gamma": 0.5,
         "colsample_bytree": 0.8
       },
       "cv": {
         "roc_auc": {
-          "mean": 0.7862520033977756,
-          "std": 0.0269071779117635
+          "mean": 0.7910358261670929,
+          "std": 0.017178964897265944
         },
         "log_loss": {
-          "mean": 0.25293335020542146,
-          "std": 0.010069978054042299
+          "mean": 0.24662828743457793,
+          "std": 0.007710876758398476
         },
         "brier": {
-          "mean": 0.07078341692686081,
-          "std": 0.002344792317609871
+          "mean": 0.06860140413045883,
+          "std": 0.002265990859005932
         }
       },
       "test": {
-        "roc_auc": 0.7809078655172079,
-        "log_loss": 0.25497967004776,
-        "brier": 0.07112841308116913
+        "roc_auc": 0.8201427075150562,
+        "log_loss": 0.2374911904335022,
+        "brier": 0.06693346798419952
       }
     }
   }

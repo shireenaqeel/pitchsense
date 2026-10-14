@@ -1,0 +1,131 @@
+{
+  "tournaments": [
+    "World Cup 2018",
+    "World Cup 2022",
+    "Euro 2020",
+    "Euro 2024",
+    "Copa Am\u00e9rica 2024",
+    "AFCON 2023"
+  ],
+  "n_shots": 7509,
+  "n_club_shots": 37488,
+  "features": [
+    "distance",
+    "angle",
+    "defenders_in_cone",
+    "nearest_defender_dist",
+    "defenders_behind_ball",
+    "keeper_dist_to_goal",
+    "keeper_dist_to_ball",
+    "keeper_in_cone",
+    "defenders_in_lane",
+    "is_header",
+    "is_first_time",
+    "is_one_on_one",
+    "under_pressure",
+    "from_open_play",
+    "assist_cross",
+    "assist_cutback",
+    "assist_through_ball"
+  ],
+  "cv_folds": 5,
+  "search_iter": 40,
+  "models": {
+    "logistic_regression": {
+      "mean_roc_auc": 0.7838219640044607,
+      "mean_log_loss": 0.2522380773536167,
+      "per_tournament": {
+        "World Cup 2018": {
+          "roc_auc": 0.7751361474581699,
+          "log_loss": 0.23913976047075894,
+          "brier": 0.06543793830378165,
+          "n": 1638,
+          "goals": 135
+        },
+        "World Cup 2022": {
+          "roc_auc": 0.8070587266287784,
+          "log_loss": 0.2756469040540485,
+          "brier": 0.07986743609388158,
+          "n": 1430,
+          "goals": 152
+        },
+        "Euro 2020": {
+          "roc_auc": 0.7870695247081023,
+          "log_loss": 0.26642940542421795,
+          "brier": 0.07523747366508654,
+          "n": 1234,
+          "goals": 122
+        },
+        "Euro 2024": {
+          "roc_auc": 0.7666091312146749,
+          "log_loss": 0.2341134619208549,
+          "brier": 0.0641718189649767,
+          "n": 1304,
+          "goals": 98
+        },
+        "Copa Am\u00e9rica 2024": {
+          "roc_auc": 0.7756473287446738,
+          "log_loss": 0.25437136804977295,
+          "brier": 0.07214289089849014,
+          "n": 741,
+          "goals": 63
+        },
+        "AFCON 2023": {
+          "roc_auc": 0.7914109252723646,
+          "log_loss": 0.24372756420204697,
+          "brier": 0.06843892708243714,
+          "n": 1162,
+          "goals": 98
+        }
+      }
+    },
+    "xgboost": {
+      "mean_roc_auc": 0.7954886641895991,
+      "mean_log_loss": 0.24478759864966074,
+      "per_tournament": {
+        "World Cup 2018": {
+          "roc_auc": 0.7861708681402626,
+          "log_loss": 0.23555700480937958,
+          "brier": 0.06363769620656967,
+          "n": 1638,
+          "goals": 135
+        },
+        "World Cup 2022": {
+          "roc_auc": 0.8150945144551519,
+          "log_loss": 0.2668818235397339,
+          "brier": 0.07685017585754395,
+          "n": 1430,
+          "goals": 152
+        },
+        "Euro 2020": {
+          "roc_auc": 0.7967109918622479,
+          "log_loss": 0.2593092620372772,
+          "brier": 0.0728423073887825,
+          "n": 1234,
+          "goals": 122
+        },
+        "Euro 2024": {
+          "roc_auc": 0.7815598876366467,
+          "log_loss": 0.22865276038646698,
+          "brier": 0.06301572173833847,
+          "n": 1304,
+          "goals": 98
+        },
+        "Copa Am\u00e9rica 2024": {
+          "roc_auc": 0.7856908741864493,
+          "log_loss": 0.24330824613571167,
+          "brier": 0.06796185672283173,
+          "n": 741,
+          "goals": 63
+        },
+        "AFCON 2023": {
+          "roc_auc": 0.8077048488568359,
+          "log_loss": 0.23501649498939514,
+          "brier": 0.06593376398086548,
+          "n": 1162,
+          "goals": 98
+        }
+      }
+    }
+  }
+}

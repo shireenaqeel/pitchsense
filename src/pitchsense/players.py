@@ -41,6 +41,24 @@ PLAYER_FEATURES = [
     "defensive_share",   # defensive actions as a share of all actions
 ]
 
+# Effectiveness and discipline stats. These are deliberately *not* clustering
+# features: roles describe how a player plays, while these describe how well and
+# how cleanly, and are scored against role peers in ``ratings.py``.
+PLAYER_STATS = [
+    "pass_completion",   # completed passes / attempted passes
+    "dribble_success",   # completed dribbles / attempted dribbles
+    "tackle_win",        # tackles won / tackles attempted
+    "fouls_per100",      # fouls committed per 100 actions
+    "cards_per100",      # card points (yellow 1, second yellow 2, red 3) per 100 actions
+    "fouls_won_per100",  # fouls drawn per 100 actions
+]
+
+# Pass outcomes that say nothing about the passer's accuracy, excluded from attempts.
+_UNSCORED_PASS_OUTCOMES = {"Unknown", "Injury Clearance"}
+# Duel outcomes that count as a won tackle.
+_TACKLE_WON = {"Won", "Success", "Success In Play", "Success Out"}
+CARD_POINTS = {"Yellow Card": 1, "Second Yellow": 2, "Red Card": 3}
+
 # StatsBomb position name -> coarse role group, used only for labelling clusters.
 _POSITION_RULES = [
     ("Goalkeeper", "Goalkeeper"),
@@ -81,6 +99,11 @@ def _locations(events: pd.DataFrame):
     return x, y
 
 
+def _col(df: pd.DataFrame, name: str, default=np.nan) -> pd.Series:
+    """A column of the event frame, or a constant series when the match lacks it."""
+    return df[name] if name in df.columns else pd.Series(default, index=df.index)
+
+
 def player_raw_aggregates(events: pd.DataFrame) -> pd.DataFrame:
     """Per-player raw sums for one match's events.
 
@@ -108,6 +131,19 @@ def player_raw_aggregates(events: pd.DataFrame) -> pd.DataFrame:
     df["_is_shot"] = (df["type"] == "Shot").astype(int)
     df["_is_def"] = df["type"].isin(DEFENSIVE_TYPES).astype(int)
 
+    pass_outcome = _col(df, "pass_outcome")
+    df["_pass_att"] = (is_pass & ~pass_outcome.isin(_UNSCORED_PASS_OUTCOMES)).astype(int)
+    df["_pass_cmp"] = (is_pass & pass_outcome.isna()).astype(int)
+    df["_drib_cmp"] = (df["_is_dribble"].astype(bool)
+                       & (_col(df, "dribble_outcome") == "Complete")).astype(int)
+    is_tackle = (df["type"] == "Duel") & (_col(df, "duel_type") == "Tackle")
+    df["_tackle"] = is_tackle.astype(int)
+    df["_tackle_won"] = (is_tackle & _col(df, "duel_outcome").isin(_TACKLE_WON)).astype(int)
+    df["_foul"] = (df["type"] == "Foul Committed").astype(int)
+    df["_foul_won"] = (df["type"] == "Foul Won").astype(int)
+    df["_card_pts"] = (_col(df, "foul_committed_card").map(CARD_POINTS).fillna(0)
+                       + _col(df, "bad_behaviour_card").map(CARD_POINTS).fillna(0))
+
     rows = []
     for player_id, g in df[df["player_id"].notna()].groupby("player_id"):
         pos = g["position"].mode()
@@ -130,6 +166,14 @@ def player_raw_aggregates(events: pd.DataFrame) -> pd.DataFrame:
             "n_dribble": int(g["_is_dribble"].sum()),
             "n_shot": int(g["_is_shot"].sum()),
             "n_def": int(g["_is_def"].sum()),
+            "n_pass_att": int(g["_pass_att"].sum()),
+            "n_pass_cmp": int(g["_pass_cmp"].sum()),
+            "n_drib_cmp": int(g["_drib_cmp"].sum()),
+            "n_tackle": int(g["_tackle"].sum()),
+            "n_tackle_won": int(g["_tackle_won"].sum()),
+            "n_foul": int(g["_foul"].sum()),
+            "n_foul_won": int(g["_foul_won"].sum()),
+            "card_points": int(g["_card_pts"].sum()),
         })
     return pd.DataFrame(rows)
 
@@ -137,7 +181,8 @@ def player_raw_aggregates(events: pd.DataFrame) -> pd.DataFrame:
 _SUM_COLUMNS = [
     "n_events", "n_loc", "sum_x", "sum_absy", "sumsq_x", "sumsq_y", "sum_y",
     "n_passes", "n_fwd", "sum_pass_len", "n_cross", "n_carry", "n_dribble",
-    "n_shot", "n_def",
+    "n_shot", "n_def", "n_pass_att", "n_pass_cmp", "n_drib_cmp", "n_tackle",
+    "n_tackle_won", "n_foul", "n_foul_won", "card_points",
 ]
 
 
@@ -149,6 +194,8 @@ def combine_aggregates(raw: pd.DataFrame) -> pd.DataFrame:
     """
     if raw.empty:
         return raw
+    # Caches built before the effectiveness stats existed lack those columns.
+    raw = raw.assign(**{c: 0 for c in _SUM_COLUMNS if c not in raw.columns})
     summed = raw.groupby("player_id")[_SUM_COLUMNS].sum()
     main_pos = (
         raw.sort_values("n_events")
@@ -193,6 +240,18 @@ def finalize_features(pooled: pd.DataFrame, min_events: int = MIN_EVENTS) -> pd.
     df["shot_share"] = df["n_shot"] / n
     df["defensive_share"] = df["n_def"] / n
 
+    def ratio(num, den):
+        return (df[num] / df[den].replace(0, np.nan)).astype(float)
+
+    df["pass_completion"] = ratio("n_pass_cmp", "n_pass_att")
+    df["dribble_success"] = ratio("n_drib_cmp", "n_dribble")
+    df["tackle_win"] = ratio("n_tackle_won", "n_tackle")
+    df["fouls_per100"] = 100 * df["n_foul"] / n
+    df["cards_per100"] = 100 * df["card_points"] / n
+    df["fouls_won_per100"] = 100 * df["n_foul_won"] / n
+
     df["position_group"] = df["position"].apply(position_group)
-    keep = ["player_id", "player", "position", "position_group", "n_events"] + PLAYER_FEATURES
+    keep = (["player_id", "player", "position", "position_group", "n_events",
+             "n_dribble", "n_tackle", "n_foul", "card_points"]
+            + PLAYER_FEATURES + PLAYER_STATS)
     return df[keep].reset_index(drop=True)

@@ -1,7 +1,7 @@
 {
-  "n_possessions": 29675,
+  "n_possessions": 40027,
   "n_clusters": 3,
-  "silhouette": 0.2614952355798595,
+  "silhouette": 0.2614177608482848,
   "features": [
     "duration",
     "n_actions",
@@ -17,53 +17,53 @@
   "clusters": [
     {
       "cluster": 0,
-      "label": "Patient build-up",
-      "size": 5876,
+      "label": "Quick regain / transition",
+      "size": 14966,
       "means": {
-        "duration": 57.264,
-        "n_actions": 33.346,
-        "n_passes": 17.566,
-        "start_x": 42.472,
-        "net_forward": 56.037,
-        "path_length": 460.794,
-        "directness": 0.139,
-        "forward_speed": 1.152,
-        "width": 69.185,
-        "ends_in_shot": 0.229
+        "duration": 16.606,
+        "n_actions": 10.184,
+        "n_passes": 5.628,
+        "start_x": 71.255,
+        "net_forward": 12.236,
+        "path_length": 153.509,
+        "directness": 0.075,
+        "forward_speed": 0.733,
+        "width": 49.736,
+        "ends_in_shot": 0.123
       }
     },
     {
       "cluster": 1,
       "label": "Counter-attack / direct",
-      "size": 12686,
+      "size": 17212,
       "means": {
-        "duration": 11.932,
-        "n_actions": 7.352,
-        "n_passes": 4.042,
-        "start_x": 30.616,
-        "net_forward": 56.413,
-        "path_length": 118.817,
-        "directness": 0.521,
-        "forward_speed": 6.352,
-        "width": 35.942,
-        "ends_in_shot": 0.126
+        "duration": 11.79,
+        "n_actions": 7.177,
+        "n_passes": 3.951,
+        "start_x": 30.322,
+        "net_forward": 56.826,
+        "path_length": 117.55,
+        "directness": 0.529,
+        "forward_speed": 6.453,
+        "width": 35.777,
+        "ends_in_shot": 0.123
       }
     },
     {
       "cluster": 2,
-      "label": "Quick regain / transition",
-      "size": 11113,
+      "label": "Patient build-up",
+      "size": 7849,
       "means": {
-        "duration": 17.206,
-        "n_actions": 10.598,
-        "n_passes": 5.849,
-        "start_x": 71.358,
-        "net_forward": 12.032,
-        "path_length": 158.321,
-        "directness": 0.072,
-        "forward_speed": 0.683,
-        "width": 50.006,
-        "ends_in_shot": 0.123
+        "duration": 55.095,
+        "n_actions": 31.832,
+        "n_passes": 16.79,
+        "start_x": 41.982,
+        "net_forward": 56.256,
+        "path_length": 445.071,
+        "directness": 0.145,
+        "forward_speed": 1.201,
+        "width": 68.909,
+        "ends_in_shot": 0.224
       }
     }
   ]

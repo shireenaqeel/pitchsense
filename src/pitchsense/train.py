@@ -15,6 +15,11 @@ Metrics reported:
 - Brier score: mean squared error of the predicted probabilities.
 - A calibration table: for shots grouped by predicted xG, does the average
   prediction match the actual goal rate? A trustworthy xG model is calibrated.
+
+Club shots (``CLUB_COMPETITIONS``) are optional extra *training* rows only. The
+held-out test set and every cross-validation validation fold are drawn from the
+international shots alone, so all reported metrics describe tournament football,
+the thing the app is about, however much club data is added.
 """
 
 import json
@@ -36,7 +41,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
-from pitchsense.data import load_shots
+from pitchsense.data import CLUB_COMPETITIONS, load_club_shots, load_shots
 from pitchsense.features import FEATURE_COLUMNS, TARGET_COLUMN, build_feature_frame
 
 MODEL_DIR = Path(__file__).resolve().parents[2] / "models"
@@ -121,6 +126,38 @@ def calibration_table(y_true: np.ndarray, y_prob: np.ndarray, bins: int = 10) ->
     return grouped.reset_index(drop=True)
 
 
+def international_folds(y_intl, n_extra: int, cv_folds: int = CV_FOLDS,
+                        random_state: int = 42) -> list:
+    """CV splits over ``[international rows, then n_extra club rows]``.
+
+    Validation folds are stratified over the international rows only; the club
+    rows (positions ``len(y_intl)`` onward) are added to every training fold and
+    never validated on. With ``n_extra=0`` this is plain stratified k-fold.
+    """
+    n = len(y_intl)
+    extra = np.arange(n, n + n_extra)
+    skf = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=random_state)
+    return [(np.concatenate([tr, extra]), va) for tr, va in skf.split(np.zeros(n), y_intl)]
+
+
+def with_extra(X, y, X_extra=None, y_extra=None):
+    """International rows followed by the optional club rows, positionally indexed."""
+    if X_extra is None or len(X_extra) == 0:
+        return X.reset_index(drop=True), y.reset_index(drop=True), 0
+    X_all = pd.concat([X, X_extra], ignore_index=True)
+    y_all = pd.concat([y, y_extra], ignore_index=True)
+    return X_all, y_all, len(X_extra)
+
+
+def load_club_frame(builder=None):
+    """Feature frame of the club shots, or ``None`` if they have not been fetched."""
+    from pitchsense.data import CLUB_SHOTS_DIR
+
+    if not CLUB_SHOTS_DIR.exists() or not any(CLUB_SHOTS_DIR.glob("*.parquet")):
+        return None
+    return (builder or build_feature_frame)(load_club_shots())
+
+
 def _score(y_true, prob) -> dict:
     return {
         "roc_auc": float(roc_auc_score(y_true, prob)),
@@ -130,18 +167,21 @@ def _score(y_true, prob) -> dict:
 
 
 def compare_models(X, y, model_paths, primary_path, test_size=0.2, random_state=42,
-                   cv_folds=CV_FOLDS, n_iter=XGB_SEARCH_ITER, search=True):
+                   cv_folds=CV_FOLDS, n_iter=XGB_SEARCH_ITER, search=True,
+                   X_extra=None, y_extra=None):
     """Tune, cross-validate, and evaluate both models on ``X``/``y``.
 
     Shared by the pre-shot and post-shot pipelines: both use the same search and
     the same two model families, differing only in their feature set and target.
-    Saves each tuned model to ``model_paths`` and the CV-selected primary to
+    ``X_extra``/``y_extra`` (club shots) join the training side only. Saves each
+    tuned model to ``model_paths`` and the CV-selected primary to
     ``primary_path``. Returns ``(results, calibrations, primary_model)``.
     """
-    X_train, X_test, y_train, y_test = train_test_split(
+    X_intl, X_test, y_intl, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state, stratify=y
     )
-    cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=random_state)
+    X_train, y_train, n_extra = with_extra(X_intl, y_intl, X_extra, y_extra)
+    cv = international_folds(y_intl, n_extra, cv_folds, random_state)
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     results = {}
@@ -175,20 +215,25 @@ def compare_models(X, y, model_paths, primary_path, test_size=0.2, random_state=
 
 def train_and_evaluate(test_size: float = 0.2, random_state: int = 42,
                        cv_folds: int = CV_FOLDS, n_iter: int = XGB_SEARCH_ITER,
-                       search: bool = True) -> dict:
+                       search: bool = True, include_club: bool = True) -> dict:
     shots = load_shots()
     data = build_feature_frame(shots)
     X = data[FEATURE_COLUMNS]
     y = data[TARGET_COLUMN]
+    club = load_club_frame() if include_club else None
 
     results, calibrations, primary_model = compare_models(
-        X, y, MODEL_PATHS, PRIMARY_MODEL_PATH, test_size, random_state, cv_folds, n_iter, search
+        X, y, MODEL_PATHS, PRIMARY_MODEL_PATH, test_size, random_state, cv_folds, n_iter, search,
+        X_extra=None if club is None else club[FEATURE_COLUMNS],
+        y_extra=None if club is None else club[TARGET_COLUMN],
     )
 
     metrics = {
         "n_shots": int(len(data)),
         "n_goals": int(y.sum()),
         "goal_rate": float(y.mean()),
+        "n_club_shots": 0 if club is None else int(len(club)),
+        "club_competitions": [] if club is None else [list(c) for c in CLUB_COMPETITIONS],
         "features": FEATURE_COLUMNS,
         "test_size": test_size,
         "cv_folds": cv_folds,
@@ -204,9 +249,12 @@ def train_and_evaluate(test_size: float = 0.2, random_state: int = 42,
 
 
 if __name__ == "__main__":
-    result = train_and_evaluate()
+    import sys
+
+    result = train_and_evaluate(include_club="--no-club" not in sys.argv[1:])
     m = result["metrics"]
-    print(f"Shots: {m['n_shots']}  Goals: {m['n_goals']}  Goal rate: {m['goal_rate']:.3f}")
+    print(f"Shots: {m['n_shots']}  Goals: {m['n_goals']}  Goal rate: {m['goal_rate']:.3f}  "
+          f"(+{m['n_club_shots']} club shots, training only)")
     print(f"Features: {len(m['features'])}  CV folds: {m['cv_folds']}  "
           f"Search iters (xgb): {m['search_iter']}\n")
 

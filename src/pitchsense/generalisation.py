@@ -12,12 +12,16 @@ The hyperparameter search is re-run inside each fold on the three training
 tournaments only, so the held-out tournament never influences model selection.
 This is an evaluation, not a training step — it changes no served model, only
 writes a report to ``models/xg_generalisation.json``.
+
+The club seasons, when fetched, are added to *every* training fold and never
+held out: the question stays "how well does it do on an unseen tournament?".
+Running with ``--no-club`` writes a separate ``*_intl_only.json`` report, so the
+two can be compared to see whether the club data actually helps.
 """
 
 import json
 
 import numpy as np
-from sklearn.model_selection import StratifiedKFold
 
 from pitchsense.data import COMPETITIONS, load_shots
 from pitchsense.features import FEATURE_COLUMNS, TARGET_COLUMN, build_feature_frame
@@ -29,6 +33,9 @@ from pitchsense.train import (
     _run_search,
     _score,
     build_searches,
+    international_folds,
+    load_club_frame,
+    with_extra,
 )
 
 # Human-readable label per configured (competition_id, season_id).
@@ -37,6 +44,8 @@ TOURNAMENT_NAMES = {
     (43, 106): "World Cup 2022",
     (55, 43): "Euro 2020",
     (55, 282): "Euro 2024",
+    (223, 282): "Copa América 2024",
+    (1267, 107): "AFCON 2023",
 }
 
 METRICS_PATH = MODEL_DIR / "xg_generalisation.json"
@@ -67,6 +76,11 @@ def label_tournaments(data, labels: dict):
     return data.dropna(subset=["tournament"])
 
 
+def report_path(base, include_club: bool):
+    """The report path, suffixed ``_intl_only`` for the run without club data."""
+    return base if include_club else base.with_name(base.stem + "_intl_only" + base.suffix)
+
+
 def holdout_split(data, held: str):
     """Split into (train on every other tournament, test on the held-out one)."""
     return data[data["tournament"] != held], data[data["tournament"] == held]
@@ -88,18 +102,23 @@ def summarise(per_model: dict, tournaments: list) -> dict:
 
 def leave_one_out(data, feature_columns, target_column,
                   n_iter: int = XGB_SEARCH_ITER, cv_folds: int = CV_FOLDS,
-                  random_state: int = 42, search: bool = True) -> dict:
-    """Train on three tournaments, test on the fourth, for each held-out in turn.
+                  random_state: int = 42, search: bool = True, extra=None) -> dict:
+    """Train on every other tournament, test on the held-out one, for each in turn.
 
-    ``data`` must already carry a ``tournament`` column. Returns
+    ``data`` must already carry a ``tournament`` column. ``extra`` (club shots)
+    joins every training fold and is never tested on. Returns
     ``{model: {tournament: metrics}}``; shared by the pre-shot and post-shot runs.
     """
     per_model = {}
     for held in tournaments_in_order():
         train, test = holdout_split(data, held)
-        X_tr, y_tr = train[feature_columns], train[target_column]
+        X_tr, y_tr, n_extra = with_extra(
+            train[feature_columns], train[target_column],
+            None if extra is None else extra[feature_columns],
+            None if extra is None else extra[target_column],
+        )
         X_te, y_te = test[feature_columns], test[target_column]
-        cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=random_state)
+        cv = international_folds(train[target_column], n_extra, cv_folds, random_state)
 
         for name, (estimator, space, kind) in build_searches().items():
             if search:
@@ -115,10 +134,12 @@ def leave_one_out(data, feature_columns, target_column,
     return per_model
 
 
-def _write_report(per_model, data, feature_columns, cv_folds, n_iter, path) -> dict:
+def _write_report(per_model, data, feature_columns, cv_folds, n_iter, path,
+                  n_club: int = 0) -> dict:
     metrics = {
         "tournaments": tournaments_in_order(),
         "n_shots": int(len(data)),
+        "n_club_shots": n_club,
         "features": feature_columns,
         "cv_folds": cv_folds,
         "search_iter": n_iter,
@@ -131,23 +152,30 @@ def _write_report(per_model, data, feature_columns, cv_folds, n_iter, path) -> d
 
 
 def evaluate(n_iter: int = XGB_SEARCH_ITER, cv_folds: int = CV_FOLDS,
-             random_state: int = 42, search: bool = True) -> dict:
+             random_state: int = 42, search: bool = True, include_club: bool = True) -> dict:
     """Leave-one-tournament-out for the pre-shot xG model."""
     data = label_tournaments(build_feature_frame(load_shots()), match_tournament_map())
+    club = load_club_frame() if include_club else None
     per_model = leave_one_out(data, FEATURE_COLUMNS, TARGET_COLUMN,
-                              n_iter, cv_folds, random_state, search)
-    return _write_report(per_model, data, FEATURE_COLUMNS, cv_folds, n_iter, METRICS_PATH)
+                              n_iter, cv_folds, random_state, search, extra=club)
+    return _write_report(per_model, data, FEATURE_COLUMNS, cv_folds, n_iter,
+                         report_path(METRICS_PATH, include_club),
+                         0 if club is None else len(club))
 
 
 def evaluate_postshot(n_iter: int = XGB_SEARCH_ITER, cv_folds: int = CV_FOLDS,
-                      random_state: int = 42, search: bool = True) -> dict:
+                      random_state: int = 42, search: bool = True,
+                      include_club: bool = True) -> dict:
     """Leave-one-tournament-out for the post-shot xG (PSxG) model."""
     from pitchsense.postshot import POSTSHOT_FEATURES, build_postshot_frame
 
     data = label_tournaments(build_postshot_frame(load_shots()), match_tournament_map())
+    club = load_club_frame(build_postshot_frame) if include_club else None
     per_model = leave_one_out(data, POSTSHOT_FEATURES, "is_goal",
-                              n_iter, cv_folds, random_state, search)
-    return _write_report(per_model, data, POSTSHOT_FEATURES, cv_folds, n_iter, PSXG_METRICS_PATH)
+                              n_iter, cv_folds, random_state, search, extra=club)
+    return _write_report(per_model, data, POSTSHOT_FEATURES, cv_folds, n_iter,
+                         report_path(PSXG_METRICS_PATH, include_club),
+                         0 if club is None else len(club))
 
 
 def _random_split_reference(train_metrics_path) -> dict:
@@ -161,7 +189,8 @@ def _random_split_reference(train_metrics_path) -> dict:
 def _print_report(metrics: dict, reference: dict, title: str) -> None:
     tournaments = metrics["tournaments"]
     print(f"Leave-one-tournament-out {title}, {metrics['n_shots']} shots "
-          f"across {len(tournaments)} tournaments (ROC AUC on the held-out one)\n")
+          f"across {len(tournaments)} tournaments, +{metrics['n_club_shots']} club shots "
+          f"in training (ROC AUC on the held-out one)\n")
     print("held out ->".ljust(22) + "".join(t.rjust(18) for t in tournaments) + "  mean   (random)")
     for name, s in metrics["models"].items():
         row = name.ljust(22)
@@ -176,14 +205,15 @@ def _print_report(metrics: dict, reference: dict, title: str) -> None:
 if __name__ == "__main__":
     import sys
 
-    which = sys.argv[1] if len(sys.argv) > 1 else "xg"
-    if which == "psxg":
+    args = sys.argv[1:]
+    include_club = "--no-club" not in args
+    if "psxg" in args:
         from pitchsense.postshot import METRICS_PATH as PSXG_TRAIN_METRICS
-        metrics = evaluate_postshot()
+        metrics = evaluate_postshot(include_club=include_club)
         _print_report(metrics, _random_split_reference(PSXG_TRAIN_METRICS),
                       "post-shot xG (PSxG), on-target shots")
-        print(f"\nSaved report to {PSXG_METRICS_PATH}")
+        print(f"\nSaved report to {report_path(PSXG_METRICS_PATH, include_club)}")
     else:
-        metrics = evaluate()
+        metrics = evaluate(include_club=include_club)
         _print_report(metrics, _random_split_reference(XG_METRICS_PATH), "xG")
-        print(f"\nSaved report to {METRICS_PATH}")
+        print(f"\nSaved report to {report_path(METRICS_PATH, include_club)}")
