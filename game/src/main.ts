@@ -1,3 +1,9 @@
+// Fonts ship with the game rather than coming from Google, so a visit makes no
+// third-party requests.
+import "@fontsource/bungee/latin-400.css";
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-600.css";
+import "@fontsource/inter/latin-800.css";
 import Phaser from "phaser";
 
 import { AcademyScene } from "./scenes/AcademyScene";

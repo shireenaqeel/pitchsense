@@ -446,6 +446,13 @@ models, tests and builds the game, and publishes it to GitHub Pages. The
 exported JSON is git-ignored, so the game can never drift from the models. The
 Streamlit sidebar links to the published game.
 
+**Security.** The game is a static site with no backend and no accounts. The
+built page carries a Content-Security-Policy (added at build time in
+`vite.config.ts`, since GitHub Pages can't send headers) that allows only
+same-origin code; the fonts ship with the game, so a visit makes no third-party
+requests. In the workflow only the deploy job can publish, and every action is
+pinned to a commit.
+
 ## Tactical pattern classifier
 
 Beyond single shots, PitchSense classifies whole **possessions** by *how* the
