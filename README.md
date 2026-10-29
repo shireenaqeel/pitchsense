@@ -4,6 +4,8 @@ An interactive tool that teaches football tactics and concepts (xG, pressing, of
 
 Unlike a typical xG dashboard, the whole point here is a real pipeline: **real match data → trained ML models → animated replay → interactive quiz → adaptive personalization.** The predictions come from models trained on data, not from an LLM pretending to be a football expert.
 
+**Play the browser game: [shireenaqeel.github.io/pitchsense](https://shireenaqeel.github.io/pitchsense/)** (see [The game](#the-game)).
+
 ## Problem
 
 "How likely was that shot to score?" is something even experienced fans disagree on. Expected Goals (xG) answers it with data: given where a shot was taken and what was happening around it, what share of similar shots historically became goals? PitchSense trains that model and then uses it as a yardstick to help a learner build intuition.
@@ -360,6 +362,8 @@ where every score uses the same Brier scale against the real outcome.
 
 ## The game
 
+**Play it: [shireenaqeel.github.io/pitchsense](https://shireenaqeel.github.io/pitchsense/)**
+
 `game/` turns the same shots and models into a real browser game: PitchSense:
 Scout Career, built with Phaser 3, TypeScript and Vite. The Streamlit app is
 where you learn and explore; the game gives you a reason to come back. It has
@@ -396,6 +400,10 @@ answering fast, and a combo multiplier for consecutive exact reads (×1.25, ×1.
 
 ![Boss fight](docs/game_boss.png)
 
+![Referee's Eye](docs/game_referee.png)
+
+![What Happens Next?](docs/game_next.png)
+
 **The Academy.** The game assumes you can read a football picture, so it
 teaches you to first. 26 short lessons in six modules take a newcomer from
 zero to following a live match: the pitch, the rules (restarts, fouls,
@@ -413,6 +421,8 @@ play. After every shot, the reveal points at the lesson behind the model's main
 reason (`CONCEPT_NOTES` and `REASON_LESSONS` in `game/src/academy/curriculum.ts`),
 so playing and learning feed each other. The curriculum is plain data and is
 unit tested: valid answers, on-pitch coordinates, and a lesson for every tag.
+
+![An Academy lesson](docs/game_academy.png)
 
 **Meta-game.** XP, scout levels and ranks (Sunday League Scout → Legendary
 Scout), coins, 20 achievements, a trophy cabinet, a per-concept scouting report,
