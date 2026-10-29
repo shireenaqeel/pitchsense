@@ -34,6 +34,7 @@ from pitchsense.features import (
     placement_height,
 )
 from pitchsense.matches import load_matches, load_name_map, tournament_label
+from pitchsense.moments import CHOICES, MOMENTS_CACHE, load_moments
 from pitchsense.postshot import (
     ON_TARGET_OUTCOMES,
     POSTSHOT_FEATURES,
@@ -315,6 +316,28 @@ def build_puzzle(model, puzzle: dict, step: float = PUZZLE_STEP) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# What happens next?
+# --------------------------------------------------------------------------- #
+def moment_record(moment: dict, display_name: str) -> dict:
+    """One real decision moment as the game reads it (see ``moments.py``)."""
+    return {
+        "id": moment["id"],
+        "match": int(moment["match_id"]),
+        "minute": int(moment["minute"]),
+        "player": display_name,
+        "team": moment["team"],
+        "call": CHOICES.index(moment["call"]),
+        "x": moment["x"],
+        "y": moment["y"],
+        "frame": moment["frame"],
+        "before": moment["before"],
+        "after": moment["after"],
+        "outcome": moment["outcome"],
+        "rates": moment["rates"],
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Assembly
 # --------------------------------------------------------------------------- #
 def build_meta(matches_by_id: dict) -> dict:
@@ -342,7 +365,7 @@ def _write(name: str, payload, out_dir: Path) -> int:
 
 
 def export(out_dir: Path = GAME_DATA_DIR) -> dict:
-    """Write shots.json, career.json, puzzles.json and meta.json; return sizes."""
+    """Write shots.json, career.json, puzzles.json, meta.json and moments.json; return sizes."""
     out_dir.mkdir(parents=True, exist_ok=True)
     model = joblib.load(PRIMARY_MODEL_PATH)
     psxg_model = joblib.load(PSXG_MODEL_PATH) if PSXG_MODEL_PATH.exists() else None
@@ -366,6 +389,9 @@ def export(out_dir: Path = GAME_DATA_DIR) -> dict:
         "puzzles.json": _write("puzzles.json", [build_puzzle(model, p) for p in PUZZLES], out_dir),
         "meta.json": _write("meta.json", build_meta(matches_by_id), out_dir),
     }
+    if MOMENTS_CACHE.exists():
+        moments = [moment_record(m, names.get(m["player"], m["player"])) for m in load_moments()]
+        sizes["moments.json"] = _write("moments.json", moments, out_dir)
     return sizes
 
 
