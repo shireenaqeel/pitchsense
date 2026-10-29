@@ -29,6 +29,8 @@ const csp = (): Plugin => ({
 // game from /pitchsense/).
 export default defineConfig({
   base: "./",
-  build: { chunkSizeWarningLimit: 1600 },
+  // Phaser gets a chunk of its own: it's most of the download, and it only
+  // changes when the engine is upgraded, so browsers keep it cached.
+  build: { chunkSizeWarningLimit: 1600, rollupOptions: { output: { manualChunks: { phaser: ["phaser"] } } } },
   plugins: [csp()],
 });
