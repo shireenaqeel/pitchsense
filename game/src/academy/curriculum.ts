@@ -132,7 +132,7 @@ export const CURRICULUM: Module[] = [
             marks: [home(107, 38, "Shooter"), keeper(119, 42), ball(108, 38), shot([108, 38], [121, 37.5], "Goal!")],
           },
           {
-            text: "Only the goalkeeper may handle the ball, and only inside their own penalty area.\n\nEveryone else plays with feet, head and body. Touching the ball with a hand or arm is a foul.",
+            text: "Only the goalkeeper may handle the ball, and only inside their own penalty area.\n\nEveryone else plays with feet, head and body. Handball is a foul when a player handles on purpose, or makes their body unnaturally bigger with an arm. A ball that just hits an arm by accident usually isn't.",
             clear: true,
             marks: [{ kind: "zone", x: [102, 120], y: [18, 62], tone: "info", label: "Keeper may use hands" }, keeper(118, 40)],
           },
@@ -191,7 +191,7 @@ export const CURRICULUM: Module[] = [
             marks: KICK_OFF,
           },
           {
-            text: "In a league, or a tournament's group stage, a draw is fine: a win is worth 3 points and a draw 1.\n\nAt the World Cup, each team plays three group games, and the best go through to the knockouts.",
+            text: "In a league, or a tournament's group stage, a draw is fine: a win is worth 3 points and a draw 1.\n\nAt the World Cup, each team plays three group games, and the best go through to the knockouts. Since 2026 there are 48 teams, so there's an extra knockout round, the round of 32.",
           },
           {
             text: "Knockout games need a winner. Level after 90 minutes usually means 30 minutes of extra time, then a penalty shoot-out. (Recent Copa Américas went straight to penalties before the final.)",
@@ -226,7 +226,7 @@ export const CURRICULUM: Module[] = [
             marks: [home(90, 1.2, "Throw-in"), ball(90.6, 0.8), pass([90, 1.5], [97, 12]), home(97, 13)],
           },
           {
-            text: "Over the goal line, it depends who touched it last.\n\nIf an attacker did, the defending team restarts with a goal kick from inside their six-yard box.",
+            text: "Over the goal line, it depends who touched it last.\n\nIf an attacker did, the defending team restarts with a goal kick from anywhere in their six-yard box. The ball is live as soon as it's kicked, so many teams just pass it short to a defender.",
             clear: true,
             marks: [keeper(115, 34), ball(115.5, 33.4), pass([115, 34], [86, 16], "Goal kick")],
           },
@@ -284,11 +284,11 @@ export const CURRICULUM: Module[] = [
         view: "half",
         steps: [
           {
-            text: "Offside stops attackers from just waiting next to the goal.\n\nIt's judged at the moment a teammate plays the ball forward, not when the ball arrives.",
+            text: "Offside stops attackers from just waiting next to the goal.\n\nIt's judged at the moment a teammate plays or touches the ball, not when the ball arrives.",
             marks: [home(86, 40, "Passer"), ball(87, 40), away(100, 24), away(101, 37), away(100, 50), away(99, 63), keeper(118, 40), home(98, 46, "Striker")],
           },
           {
-            text: "Draw a line across the pitch at the second-to-last defender. That's usually the last outfield defender, because the keeper is normally the very last. This is the offside line.",
+            text: "Draw a line across the pitch at the second-to-last defender. That's usually the last outfield defender, because the keeper is normally the very last. This is the offside line.\n\nTo be offside you must be past this line and past the ball. Arms don't count, but feet, head and body do.",
             marks: [{ kind: "line", x: 101, label: "Offside line" }],
           },
           {
@@ -300,6 +300,12 @@ export const CURRICULUM: Module[] = [
             clear: true,
             marks: [home(86, 40, "Passer"), ball(87, 40), away(100, 24), away(101, 37), away(100, 50), away(99, 63), keeper(118, 40),
               { kind: "line", x: 101, label: "Offside line" }, home(105, 30, "Offside!"), pass([87, 40], [106, 31])],
+          },
+          {
+            text: "Standing in an offside position isn't an offence on its own. It only counts if that player gets involved: plays the ball, blocks the keeper's view, or challenges for it.\n\nThat's why the assistant referee sometimes waits before raising the flag, or never raises it at all.",
+            clear: true,
+            marks: [home(86, 40, "Passer"), ball(87, 40), away(100, 24), away(101, 37), away(100, 50), away(99, 63), keeper(118, 40),
+              { kind: "line", x: 101, label: "Offside line" }, home(108, 14, "Not involved"), home(98, 44, "Onside"), pass([87, 40], [109, 42]), run([98, 44], [108, 42])],
           },
         ],
         quiz: {
