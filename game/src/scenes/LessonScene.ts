@@ -19,7 +19,7 @@ const TEXT_X = PANEL_X + 24;
 const TEXT_W = PANEL_W - 48;
 
 /** Where each kind of diagram sits on screen: [ox, oy, scale, viewport]. */
-const VIEWS: Record<View, [number, number, number, Viewport]> = {
+export const VIEWS: Record<View, [number, number, number, Viewport]> = {
   full: [40 + (680 - 80 * 4.4) / 2, 140, 4.4, { xMin: 0, yMin: 0, yMax: 80 }],
   half: [40, 158, 8.5, HALF],
   box: [40, 190, 680 / 60, { xMin: 84, yMin: 10, yMax: 70 }],

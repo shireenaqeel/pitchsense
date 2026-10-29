@@ -18,8 +18,8 @@ export type Mark =
   /** Blue attacks up the screen; red defends the top goal; keeper is red's keeper; ref is an official. */
   | { kind: "player"; at: Pt; side: "home" | "away" | "keeper" | "ref"; label?: string }
   | { kind: "ball"; at: Pt }
-  /** A pass (solid), a run without the ball (dashed) or a shot (thick). */
-  | { kind: "arrow"; from: Pt; to: Pt; style: "pass" | "run" | "shot"; label?: string }
+  /** A pass (solid), a run without the ball (dashed), a shot (thick) or a faint trail of earlier play. */
+  | { kind: "arrow"; from: Pt; to: Pt; style: "pass" | "run" | "shot" | "trail"; label?: string }
   | { kind: "zone"; x: [number, number]; y: [number, number]; tone?: Tone; label?: string }
   /** A dashed line straight across the pitch at depth x. */
   | { kind: "line"; x: number; label?: string }
@@ -74,15 +74,15 @@ const IFAB = (law: string, slug: string): Link => ({ label: `Laws of the Game: $
 const WIKI = (label: string, page: string): Link => ({ label: `Wikipedia: ${label}`, url: `https://en.wikipedia.org/wiki/${page}` });
 const STATSBOMB_XG: Link = { label: "StatsBomb: xG explained", url: "https://statsbomb.com/soccer-metrics/expected-goals-xg-explained/" };
 
-const home = (x: number, y: number, label?: string): Mark => ({ kind: "player", at: [x, y], side: "home", label });
-const away = (x: number, y: number, label?: string): Mark => ({ kind: "player", at: [x, y], side: "away", label });
-const keeper = (x = 119, y = 40): Mark => ({ kind: "player", at: [x, y], side: "keeper" });
-const ref = (x: number, y: number, label?: string): Mark => ({ kind: "player", at: [x, y], side: "ref", label });
-const ball = (x: number, y: number): Mark => ({ kind: "ball", at: [x, y] });
-const board = (x: number, y: number, lines: string[], tone?: Tone, hl?: number): Mark => ({ kind: "board", at: [x, y], lines, tone, hl });
-const pass = (from: Pt, to: Pt, label?: string): Mark => ({ kind: "arrow", from, to, style: "pass", label });
-const run = (from: Pt, to: Pt, label?: string): Mark => ({ kind: "arrow", from, to, style: "run", label });
-const shot = (from: Pt, to: Pt, label?: string): Mark => ({ kind: "arrow", from, to, style: "shot", label });
+export const home = (x: number, y: number, label?: string): Mark => ({ kind: "player", at: [x, y], side: "home", label });
+export const away = (x: number, y: number, label?: string): Mark => ({ kind: "player", at: [x, y], side: "away", label });
+export const keeper = (x = 119, y = 40): Mark => ({ kind: "player", at: [x, y], side: "keeper" });
+export const ref = (x: number, y: number, label?: string): Mark => ({ kind: "player", at: [x, y], side: "ref", label });
+export const ball = (x: number, y: number): Mark => ({ kind: "ball", at: [x, y] });
+export const board = (x: number, y: number, lines: string[], tone?: Tone, hl?: number): Mark => ({ kind: "board", at: [x, y], lines, tone, hl });
+export const pass = (from: Pt, to: Pt, label?: string): Mark => ({ kind: "arrow", from, to, style: "pass", label });
+export const run = (from: Pt, to: Pt, label?: string): Mark => ({ kind: "arrow", from, to, style: "run", label });
+export const shot = (from: Pt, to: Pt, label?: string): Mark => ({ kind: "arrow", from, to, style: "shot", label });
 
 /** Both teams lined up in their own halves for kick-off. */
 const KICK_OFF: Mark[] = [

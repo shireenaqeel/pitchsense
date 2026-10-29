@@ -44,6 +44,8 @@ export class MenuScene extends Phaser.Scene {
         : `New to football? Start here · ${lessons}/${LESSONS.length} lessons`, C.gold, () => goTo(this, "Academy")],
       ["trophy", "World Tour", `Career · ${s.trophies.length}/6 trophies · ★ ${totalStars}/${maxStars}`, C.accent,
         () => goTo(this, "Career")],
+      ["whistle", "Read the Match", `Referee's Eye or What Happens Next? · real moves`, 0x14b8a6,
+        () => goTo(this, "ReadMatch")],
       ["calendar", "Daily Challenge", dailyDone ? `#${dailyNumber(today)} done · ${s.daily.scores[today]} pts · ${s.daily.streak}-day streak`
         : `#${dailyNumber(today)} · 10 shots, same for everyone`, 0x3b82f6, () => goTo(this, "Play", { kind: "daily" })],
       ["stopwatch", "Rapid Fire", `60 seconds, endless shots · best ${s.rapidBest}`, 0xf97316,
@@ -52,7 +54,7 @@ export class MenuScene extends Phaser.Scene {
         () => goTo(this, "Striker")],
     ];
     modes.forEach(([glyph, label, sub, color, go], i) => {
-      const b = new Button(this, 300, 270 + i * 74, { w: 460, h: 64, label, sub, size: 21, align: "left", display: true,
+      const b = new Button(this, 300, 262 + i * 63, { w: 460, h: 56, label, sub, size: 20, align: "left", display: true,
         icon: glyph, iconColor: color }, go);
       b.label.setColor(hex(color));
       b.setAlpha(0).setX(260);

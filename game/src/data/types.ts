@@ -66,6 +66,32 @@ export interface Puzzle {
   best: [number, number, number];
 }
 
+/** The four calls in What Happens Next?, indexed by `Moment.call`. */
+export const CALLS = ["Shoot", "Pass", "Cross", "Dribble"] as const;
+
+/** Frame kind for the player on the ball in a 360 moment. */
+export const ACTOR = 3;
+
+/** A real decision moment from a 360 match (see `pitchsense/moments.py`). */
+export interface Moment {
+  id: string;
+  match: number;
+  minute: number;
+  player: string;
+  team: string;
+  /** What the player actually did: an index into CALLS. */
+  call: number;
+  x: number;
+  y: number;
+  frame: [number, number, number][];
+  /** Ball waypoints leading up to the moment, and from it to the move's end. */
+  before: [number, number][];
+  after: [number, number][];
+  outcome: "goal" | "shot" | "no shot";
+  /** Share of each call by real players in this pitch zone, in CALLS order. */
+  rates: number[];
+}
+
 export interface Band {
   label: string;
   emoji: string;

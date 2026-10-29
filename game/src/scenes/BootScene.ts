@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 
-import type { Meta, Puzzle, Shot, World } from "../data/types";
+import type { Meta, Moment, Puzzle, Shot, World } from "../data/types";
 import { G } from "../state";
 import { loadIcons } from "../ui/icons";
 import { body, C, crisp, H, title, W } from "../ui/theme";
@@ -21,12 +21,15 @@ export class BootScene extends Phaser.Scene {
       g.fillStyle(0x000000, 0.5).fillRoundedRect(W / 2 - 200, H / 2, 400, 14, 7);
       g.fillStyle(C.accent, 1).fillRoundedRect(W / 2 - 200, H / 2, Math.max(14, 400 * v), 14, 7);
     });
-    this.load.on("loaderror", () => label.setText("Could not load the game data. Run `python -m pitchsense.export_game`."));
+    // The moments are optional: without them only What Happens Next? is unavailable.
+    this.load.on("loaderror", (file: Phaser.Loader.File) => file.key !== "moments" &&
+      label.setText("Could not load the game data. Run `python -m pitchsense.export_game`."));
 
     this.load.json("shots", "data/shots.json");
     this.load.json("career", "data/career.json");
     this.load.json("puzzles", "data/puzzles.json");
     this.load.json("meta", "data/meta.json");
+    this.load.json("moments", "data/moments.json");
     loadIcons(this);
   }
 
@@ -42,7 +45,7 @@ export class BootScene extends Phaser.Scene {
     const shots = this.cache.json.get("shots") as Shot[] | undefined;
     if (!shots) return;
     G.setData(shots, this.cache.json.get("career") as World[], this.cache.json.get("puzzles") as Puzzle[],
-      this.cache.json.get("meta") as Meta);
+      this.cache.json.get("meta") as Meta, (this.cache.json.get("moments") as Moment[] | undefined) ?? []);
     G.load();
 
     this.scene.launch("Overlay");

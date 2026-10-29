@@ -392,6 +392,7 @@ answering fast, and a combo multiplier for consecutive exact reads (×1.25, ×1.
 | 📅 Daily Challenge | 10 shots seeded by the date, two from every chance band, the same for everyone. One scored attempt a day, a streak, and a Wordle-style 🟩🟨🟥 result to copy. |
 | ⏱️ Rapid Fire | 60 seconds of endless shots. Exact reads add 2 s and close reads 1 s. Shots are chosen by the same weak-concept weighting as `concepts.pick_adaptive`, ported to TypeScript. |
 | 🎯 Striker's Instinct | Puzzles. You carry the ball up to N yards into a fixed defence and shoot from the spot you think the model rates highest. Then the model's xG for every reachable spot is revealed as a heatmap (`export_game.build_puzzle`). |
+| 🔭 Read the Match | Two ways to practise watching a match. **Referee's Eye**: 18 drawn situations (offside, penalties, advantage, back-passes, handball, cards, VAR) where you make the referee's call, each linked to the Academy lesson behind it (`game/src/academy/referee.ts`). **What Happens Next?**: 400 real final-third moments from the three tournaments with StatsBomb 360 data (Euro 2020, World Cup 2022, Euro 2024), drawn with every player the camera saw. You call shoot, pass, cross or dribble. Calling what the player really did scores 100, calling what most players do from that part of the pitch scores 50, and the reveal plays out the real move and shows how often players make each call from there (`pitchsense.moments`). |
 
 ![Boss fight](docs/game_boss.png)
 
@@ -414,7 +415,7 @@ so playing and learning feed each other. The curriculum is plain data and is
 unit tested: valid answers, on-pitch coordinates, and a lesson for every tag.
 
 **Meta-game.** XP, scout levels and ranks (Sunday League Scout → Legendary
-Scout), coins, 18 achievements, a trophy cabinet, a per-concept scouting report,
+Scout), coins, 20 achievements, a trophy cabinet, a per-concept scouting report,
 and a shop with pitch themes (Floodlit Night, Snow Day, Neon Arcade, Golden
 Final) and ball skins. The save lives in `localStorage` and is merged over
 defaults on load, so an old save never breaks a new build. Every sound is
@@ -439,6 +440,7 @@ icon is a line-drawn SVG from `ui/icons.ts`, tinted in place. The game uses no e
 `game/src/scenes/`.
 
 ```bash
+PYTHONPATH=src python -m pitchsense.moments       # one-off: fetches ~1.3 GB of 360 data, writes data/moments.parquet
 PYTHONPATH=src python -m pitchsense.export_game   # writes game/public/data/*.json
 cd game && npm install
 npm run dev     # play at http://localhost:5173

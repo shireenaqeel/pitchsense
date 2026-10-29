@@ -39,6 +39,9 @@ export interface SaveData {
   trophies: string[];
   puzzles: Record<string, number>;
   rapidBest: number;
+  /** Best round scores in Referee's Eye and What Happens Next? */
+  refBest: number;
+  nextBest: number;
   daily: DailyState;
   achievements: string[];
   /** Ids of finished Academy lessons. */
@@ -70,6 +73,8 @@ export function defaultSave(): SaveData {
     trophies: [],
     puzzles: {},
     rapidBest: 0,
+    refBest: 0,
+    nextBest: 0,
     daily: { last: null, streak: 0, bestStreak: 0, scores: {} },
     achievements: [],
     academy: [],

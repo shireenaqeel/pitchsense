@@ -149,11 +149,12 @@ export class Diagram {
     }
   }
 
-  private arrow(from: Pt, to: Pt, style: "pass" | "run" | "shot", label?: string): void {
+  private arrow(from: Pt, to: Pt, style: "pass" | "run" | "shot" | "trail", label?: string): void {
     const a = this.at(from);
     const b = this.at(to);
     const color = style === "shot" ? C.gold : style === "run" ? 0xbfdbfe : 0xffffff;
-    const width = style === "shot" ? 4 : 3;
+    const width = style === "shot" ? 4 : style === "trail" ? 2 : 3;
+    const alpha = style === "trail" ? 0.45 : 0.95;
     const g = this.scene.add.graphics();
     this.pitch.add(g);
     const angle = Math.atan2(b.y - a.y, b.x - a.x);
@@ -162,7 +163,7 @@ export class Diagram {
 
     const render = (t: number) => {
       if (!g.scene) return; // cleared by the next step mid-animation
-      g.clear().lineStyle(width, color, 0.95);
+      g.clear().lineStyle(width, color, alpha);
       const end = Math.max(0, len * t - head * 0.6);
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
@@ -172,7 +173,7 @@ export class Diagram {
         g.lineBetween(a.x, a.y, a.x + cos * end, a.y + sin * end);
       }
       if (t < 1) return;
-      g.fillStyle(color, 1).fillTriangle(
+      g.fillStyle(color, alpha).fillTriangle(
         b.x, b.y,
         b.x - cos * head - sin * head * 0.55, b.y - sin * head + cos * head * 0.55,
         b.x - cos * head + sin * head * 0.55, b.y - sin * head - cos * head * 0.55,

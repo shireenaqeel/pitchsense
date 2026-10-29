@@ -11,8 +11,11 @@ import { BootScene } from "./scenes/BootScene";
 import { CareerScene } from "./scenes/CareerScene";
 import { LessonScene } from "./scenes/LessonScene";
 import { MenuScene } from "./scenes/MenuScene";
+import { NextScene } from "./scenes/NextScene";
 import { OverlayScene } from "./scenes/OverlayScene";
 import { PlayScene } from "./scenes/PlayScene";
+import { ReadMatchScene } from "./scenes/ReadMatchScene";
+import { RefScene } from "./scenes/RefScene";
 import { ResultsScene } from "./scenes/ResultsScene";
 import { ShopScene } from "./scenes/ShopScene";
 import { StrikerScene } from "./scenes/StrikerScene";
@@ -28,5 +31,6 @@ new Phaser.Game({
   backgroundColor: C.bg,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   render: { antialias: true, roundPixels: false },
-  scene: [BootScene, MenuScene, AcademyScene, LessonScene, CareerScene, PlayScene, ResultsScene, StrikerScene, TrophyScene, ShopScene, OverlayScene],
+  scene: [BootScene, MenuScene, AcademyScene, LessonScene, CareerScene, PlayScene, ResultsScene, StrikerScene,
+    ReadMatchScene, RefScene, NextScene, TrophyScene, ShopScene, OverlayScene],
 });
