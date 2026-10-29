@@ -15,6 +15,8 @@ file path as an argument, so it can be unit tested against a temporary file.
 """
 
 import json
+import re
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,6 +25,20 @@ LEADERBOARD_PATH = DATA_DIR / "leaderboard.json"
 
 # Rounds a player must complete before their score is ranked.
 MIN_ROUNDS = 5
+
+# The board is shared by everyone using a deployed app, so names are cleaned
+# and the file is capped: only the best MAX_ENTRIES rows are kept on disk.
+MAX_NAME = 20
+MAX_ENTRIES = 200
+
+
+def clean_name(name: str | None) -> str:
+    """A display-safe name: no control or invisible characters, single spaces,
+    at most ``MAX_NAME`` characters, "Anonymous" if nothing is left."""
+    text = unicodedata.normalize("NFKC", name or "")
+    text = "".join(ch for ch in text if unicodedata.category(ch)[0] not in "CZ" or ch == " ")
+    text = re.sub(r"\s+", " ", text).strip()[:MAX_NAME].strip()
+    return text or "Anonymous"
 
 
 def make_entry(name: str, total_points: int, model_points: int, rounds: int,
@@ -35,7 +51,7 @@ def make_entry(name: str, total_points: int, model_points: int, rounds: int,
     """
     if rounds < 1:
         raise ValueError("a leaderboard entry needs at least one round")
-    name = (name or "").strip() or "Anonymous"
+    name = clean_name(name)
     when = when or datetime.now(timezone.utc)
     avg_points = total_points / rounds
     model_avg = model_points / rounds
@@ -71,12 +87,19 @@ def save_scores(scores: list, path: Path = LEADERBOARD_PATH) -> None:
     path.write_text(json.dumps(scores, indent=2), encoding="utf-8")
 
 
-def add_score(entry: dict, path: Path = LEADERBOARD_PATH) -> list:
-    """Append one entry to the saved board and return the updated list."""
-    scores = load_scores(path)
-    scores.append(entry)
+def add_score(entry: dict, path: Path = LEADERBOARD_PATH, max_entries: int = MAX_ENTRIES) -> list:
+    """Add one entry to the saved board and return the updated list.
+
+    Only the best ``max_entries`` qualifying rows are kept (see ``ranked``), so
+    the file cannot grow without bound however many scores are submitted.
+    """
+    scores = sorted(load_scores(path) + [entry], key=_rank_key, reverse=True)[:max_entries]
     save_scores(scores, path)
     return scores
+
+
+def _rank_key(s: dict) -> tuple:
+    return (s.get("avg_points", 0), s.get("vs_model", 0), s.get("rounds", 0))
 
 
 def ranked(scores: list, min_rounds: int = MIN_ROUNDS) -> list:
@@ -87,11 +110,7 @@ def ranked(scores: list, min_rounds: int = MIN_ROUNDS) -> list:
     thinner one.
     """
     qualifying = [s for s in scores if s.get("rounds", 0) >= min_rounds]
-    return sorted(
-        qualifying,
-        key=lambda s: (s.get("avg_points", 0), s.get("vs_model", 0), s.get("rounds", 0)),
-        reverse=True,
-    )
+    return sorted(qualifying, key=_rank_key, reverse=True)
 
 
 def top(scores: list, n: int = 10, min_rounds: int = MIN_ROUNDS) -> list:

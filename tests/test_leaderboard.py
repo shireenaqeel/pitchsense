@@ -6,6 +6,7 @@ import pytest
 
 from pitchsense.leaderboard import (
     add_score,
+    clean_name,
     load_scores,
     make_entry,
     ranked,
@@ -87,3 +88,19 @@ def test_save_scores_creates_parent_dir(tmp_path):
     save_scores([make_entry("A", 300, 200, 5)], path)
     assert path.exists()
     assert load_scores(path)[0]["name"] == "A"
+
+
+def test_clean_name_strips_control_and_invisible_characters():
+    assert clean_name("  Ada\u202e\u200b  \n Lovelace\x00 ") == "Ada Lovelace"
+    assert clean_name("\u200b\t") == "Anonymous"
+    assert clean_name(None) == "Anonymous"
+    assert len(clean_name("x" * 100)) == 20
+    assert make_entry("  \x07Bob ", 50, 40, 5)["name"] == "Bob"
+
+
+def test_add_score_caps_the_board_keeping_the_best(tmp_path):
+    path = tmp_path / "board.json"
+    for i in range(8):
+        add_score(make_entry(f"p{i}", i * 10 * 5, 0, 5), path, max_entries=5)
+    names = [s["name"] for s in load_scores(path)]
+    assert names == ["p7", "p6", "p5", "p4", "p3"]

@@ -451,7 +451,8 @@ built page carries a Content-Security-Policy (added at build time in
 `vite.config.ts`, since GitHub Pages can't send headers) that allows only
 same-origin code; the fonts ship with the game, so a visit makes no third-party
 requests. In the workflow only the deploy job can publish, and every action is
-pinned to a commit.
+pinned to a commit. The Streamlit leaderboard cleans names and keeps only the
+best 200 rows, so a public deployment can't be flooded.
 
 ## Tactical pattern classifier
 
