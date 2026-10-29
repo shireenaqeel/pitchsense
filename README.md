@@ -235,7 +235,9 @@ src/pitchsense/
   players.py    # player -> behavioural feature vector (pure, tested)
   roles.py      # cluster players into roles (k-means + PCA role map)
   ratings.py    # per-player effectiveness & discipline, percentiled within role
+  export_game.py # bake shots, xG, reasons, career and puzzles into JSON for the game
 streamlit_app.py  # the app: lessons, quiz, sandbox, explorers
+game/           # the browser game (Phaser 3 + TypeScript + Vite), see "The game"
 tests/          # unit tests for the geometry, features, and rendering
 data/           # cached raw data (git-ignored)
 models/         # trained models + metrics (git-ignored)
@@ -355,6 +357,94 @@ an online one. The store, ranking, and qualification rules live as pure function
 in `leaderboard.py` and are unit tested against a temporary file; the quiz shows
 the top ten and reveals a save form once you have qualified. The leaderboard lives in Expert mode,
 where every score uses the same Brier scale against the real outcome.
+
+## The game
+
+`game/` turns the same shots and models into a real browser game: PitchSense:
+Scout Career, built with Phaser 3, TypeScript and Vite. The Streamlit app is
+where you learn and explore; the game gives you a reason to come back. It has
+no backend. `python -m pitchsense.export_game` bakes everything the game needs
+into static JSON, so every probability it shows came from a model trained here.
+
+![Career map](docs/game_career.png)
+
+**Core loop.** You see the frozen moment a real shot was struck: the shooter,
+teammates, defenders and keeper slide into place. You have a few seconds to
+call the chance band (keys 1–5). The model then locks in its own call, the
+ball flies to where the shot really finished (top-down, so it grows as it
+rises), and a GOAL / SAVED / BLOCKED stamp lands. The reveal card shows your
+call against the model's xG, post-shot xG if it was on target, and the model's
+own reasons from `explain.reasons`.
+
+![A round](docs/game_round.png)
+
+**Scoring.** The base points are the Streamlit quiz's beginner scoring (100 for
+the model's band, 50 for a neighbour). On top of that you get up to +25 for
+answering fast, and a combo multiplier for consecutive exact reads (×1.25, ×1.5,
+×2). Stars only count base points, so they measure reading, not reflexes.
+
+**Modes**
+
+| Mode | What it is |
+|---|---|
+| 🏆 World Tour | Career mode. Each of the six tournaments is played along the eventual champion's road: three group games, the knockouts and the final (`export_game.build_career`). A match is up to 10 of its real shots in minute order, every goal included, with a live scoreboard that ticks over (penalties too). You have 3 hearts, and a read two bands off costs one. 1–3 stars. |
+| 🤖 Boss: The Model | Every final is a boss fight. The Model has 80 HP per shot, your points deal damage, you get 7 s per shot, and a misread lets it strike back. Win to lift the trophy and unlock the next tournament. |
+| 📅 Daily Challenge | 10 shots seeded by the date, two from every chance band, the same for everyone. One scored attempt a day, a streak, and a Wordle-style 🟩🟨🟥 result to copy. |
+| ⏱️ Rapid Fire | 60 seconds of endless shots. Exact reads add 2 s and close reads 1 s. Shots are chosen by the same weak-concept weighting as `concepts.pick_adaptive`, ported to TypeScript. |
+| 🎯 Striker's Instinct | Puzzles. You carry the ball up to N yards into a fixed defence and shoot from the spot you think the model rates highest. Then the model's xG for every reachable spot is revealed as a heatmap (`export_game.build_puzzle`). |
+
+![Boss fight](docs/game_boss.png)
+
+**The Academy.** The game assumes you can read a football picture, so it
+teaches you to first. 17 short lessons in four modules take a newcomer from
+zero: the pitch, the rules (restarts, fouls, offside), positions and
+formations, how attacks are built (crosses, cutbacks, through balls, counters,
+set pieces), and finally xG, the chance bands and post-shot xG. Each lesson
+steps through an animated diagram drawn on the same pitch the game uses, ends
+with a check question, and links out to the IFAB Laws of the Game, Wikipedia
+and StatsBomb for more. First-time players are offered the Academy before they
+play. After every shot, the reveal points at the lesson behind the model's main
+reason (`CONCEPT_NOTES` and `REASON_LESSONS` in `game/src/academy/curriculum.ts`),
+so playing and learning feed each other. The curriculum is plain data and is
+unit tested: valid answers, on-pitch coordinates, and a lesson for every tag.
+
+**Meta-game.** XP, scout levels and ranks (Sunday League Scout → Legendary
+Scout), coins, 18 achievements, a trophy cabinet, a per-concept scouting report,
+and a shop with pitch themes (Floodlit Night, Snow Day, Neon Arcade, Golden
+Final) and ball skins. The save lives in `localStorage` and is merged over
+defaults on load, so an old save never breaks a new build. Every sound is
+synthesised with WebAudio, so the game ships no audio files.
+
+**Two things the export guards against.**
+- **Puzzle keepers track the ball.** A keeper frozen in place leaves open goals
+  the model never saw in training, and it rates them absurdly high. Puzzle
+  keepers are placed with the sandbox's `keeper_point` for every spot instead.
+- **Puzzles only let you carry the ball forward or sideways.** If you drop deep
+  enough, every defender ends up goal-side. The training data only shows that
+  shape as a counter-attack, so the model would rate a 40-yard punt as a real
+  chance (`reachable_spots`).
+
+**Layout.** Game rules live in `game/src/systems/` as pure TypeScript: scoring,
+progression, career, adaptive selection, seeded RNG, achievements, the save and
+cosmetics. They are unit tested with Vitest and know nothing about Phaser.
+Rendering lives in `game/src/pitch/PitchView.ts`, which maps StatsBomb yards to
+screen pixels and has a zoomable viewport. The canvas is drawn at the screen's
+real resolution (`RES` in `ui/theme.ts`) so lines and text stay sharp, and every
+icon is a line-drawn SVG from `ui/icons.ts`, tinted in place. The game uses no emoji. The screens are in
+`game/src/scenes/`.
+
+```bash
+PYTHONPATH=src python -m pitchsense.export_game   # writes game/public/data/*.json
+cd game && npm install
+npm run dev     # play at http://localhost:5173
+npm test        # Vitest: the game systems
+npm run build   # static site in game/dist/
+```
+
+`.github/workflows/game.yml` runs the export from the committed caches and
+models, tests and builds the game, and publishes it to GitHub Pages. The
+exported JSON is git-ignored, so the game can never drift from the models. The
+Streamlit sidebar links to the published game.
 
 ## Tactical pattern classifier
 
@@ -528,6 +618,10 @@ PYTHONPATH=src python -m pitchsense.ratings
 
 # Launch the interactive quiz
 streamlit run streamlit_app.py
+
+# Export the game data, then play the browser game
+PYTHONPATH=src python -m pitchsense.export_game
+cd game && npm install && npm run dev
 
 # Run the tests
 pytest

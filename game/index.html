@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PitchSense: Scout Career</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b1410; overflow: hidden; }
+      #game { width: 100vw; height: 100vh; }
+      /* Preload both families so Phaser text has them on first draw. */
+      .font-warm { position: absolute; left: -9999px; }
+    </style>
+  </head>
+  <body>
+    <span class="font-warm" style="font-family: Bungee">.</span>
+    <span class="font-warm" style="font-family: Inter; font-weight: 800">.</span>
+    <div id="game"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

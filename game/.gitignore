@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# Exported by `python -m pitchsense.export_game`; built in CI, never committed.
+public/data/

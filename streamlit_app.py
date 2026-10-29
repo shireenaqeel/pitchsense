@@ -107,6 +107,8 @@ from pitchsense.viz import plot_shot
 ROOT = Path(__file__).resolve().parent
 MODELS_DIR = ROOT / "models"
 REPLAY_GIF = ROOT / "docs" / "example_sequence.gif"
+# The browser game in game/, published to GitHub Pages by .github/workflows/game.yml.
+GAME_URL = "https://shireenaqeel.github.io/pitchsense/"
 BUCKET_EMOJI = {b[0]: b[1] for b in CHANCE_BUCKETS}
 HEAT_CMAP = colormaps["YlOrRd"]
 
@@ -970,6 +972,9 @@ def render_sidebar():
         st.metric("Shots read", ss.shots_read)
         if not ss.lessons_done:
             st.caption("New here? Start with **🎓 Learn**.")
+        st.divider()
+        st.link_button("🎮 Play PitchSense: the game", GAME_URL, width="stretch")
+        st.caption("Career mode, boss fights, a daily challenge — the same shots and model.")
 
 
 st.set_page_config(page_title="PitchSense", page_icon="⚽", layout="wide")
