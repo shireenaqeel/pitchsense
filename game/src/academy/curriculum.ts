@@ -15,8 +15,8 @@ export type View = "full" | "half" | "box";
 export type Tone = "accent" | "gold" | "danger" | "info";
 
 export type Mark =
-  /** Blue attacks up the screen; red defends the top goal; keeper is red's keeper. */
-  | { kind: "player"; at: Pt; side: "home" | "away" | "keeper"; label?: string }
+  /** Blue attacks up the screen; red defends the top goal; keeper is red's keeper; ref is an official. */
+  | { kind: "player"; at: Pt; side: "home" | "away" | "keeper" | "ref"; label?: string }
   | { kind: "ball"; at: Pt }
   /** A pass (solid), a run without the ball (dashed) or a shot (thick). */
   | { kind: "arrow"; from: Pt; to: Pt; style: "pass" | "run" | "shot"; label?: string }
@@ -28,7 +28,10 @@ export type Mark =
   /** A pulsing ring that points at a spot. */
   | { kind: "ring"; at: Pt; label?: string }
   /** A dot in a chance band's colour. */
-  | { kind: "spot"; at: Pt; band: number; label?: string };
+  | { kind: "spot"; at: Pt; band: number; label?: string }
+  /** A sign held up on the pitch: an added-time board, a score, a table. */
+  /** `hl` is the line drawn in the tone's colour (default the first; -1 for none). */
+  | { kind: "board"; at: Pt; lines: string[]; tone?: Tone; hl?: number };
 
 export interface Step {
   text: string;
@@ -74,7 +77,9 @@ const STATSBOMB_XG: Link = { label: "StatsBomb: xG explained", url: "https://sta
 const home = (x: number, y: number, label?: string): Mark => ({ kind: "player", at: [x, y], side: "home", label });
 const away = (x: number, y: number, label?: string): Mark => ({ kind: "player", at: [x, y], side: "away", label });
 const keeper = (x = 119, y = 40): Mark => ({ kind: "player", at: [x, y], side: "keeper" });
+const ref = (x: number, y: number, label?: string): Mark => ({ kind: "player", at: [x, y], side: "ref", label });
 const ball = (x: number, y: number): Mark => ({ kind: "ball", at: [x, y] });
+const board = (x: number, y: number, lines: string[], tone?: Tone, hl?: number): Mark => ({ kind: "board", at: [x, y], lines, tone, hl });
 const pass = (from: Pt, to: Pt, label?: string): Mark => ({ kind: "arrow", from, to, style: "pass", label });
 const run = (from: Pt, to: Pt, label?: string): Mark => ({ kind: "arrow", from, to, style: "run", label });
 const shot = (from: Pt, to: Pt, label?: string): Mark => ({ kind: "arrow", from, to, style: "shot", label });
@@ -415,6 +420,296 @@ export const CURRICULUM: Module[] = [
         },
         takeaway: "Read a formation from the back: defenders, midfielders, forwards.",
         links: [WIKI("Formations", "Formation_(association_football)")],
+      },
+    ],
+  },
+  {
+    id: "matchday",
+    title: "Matchday",
+    blurb: "The referees, VAR, the clock, and the words you'll hear in the stands.",
+    icon: "whistle",
+    lessons: [
+      {
+        id: "officials",
+        title: "The referee's team",
+        view: "full",
+        steps: [
+          {
+            text: "Four officials run a top match. The referee, in black here, has the whistle and the final say, and follows play all over the pitch.",
+            marks: [ref(66, 46, "Referee"), home(74, 30), home(80, 52), away(84, 38), away(90, 60), ball(75, 31)],
+          },
+          {
+            text: "Two assistant referees run the touchlines, one in each half. Each keeps level with the second-to-last defender, to judge offside.\n\nThe flag held up usually means offside, or a foul the referee missed. Pointed along the line, it shows which team gets a throw-in.",
+            marks: [ref(96, 0.8, "Assistant"), ref(30, 79.2, "Assistant"), { kind: "line", x: 96, label: "Offside line" }],
+          },
+          {
+            text: "The fourth official stands between the two benches. They manage the substitutions and hold up the board showing how much time is added on.",
+            clear: true,
+            marks: [ref(60, 79.2, "Fourth official"), board(70, 62, ["+4"], "gold")],
+          },
+          {
+            text: "In the big leagues and tournaments, more referees watch on screens in a video room. That's VAR, and it has a lesson of its own in this module.",
+          },
+        ],
+        quiz: {
+          q: "As a pass is played, the assistant referee near the box raises their flag. What's the most likely reason?",
+          options: ["Offside", "It's nearly half-time", "A substitution is ready"],
+          answer: 0,
+          why: "Assistants watch the offside line, so a raised flag as a pass is played almost always means offside. They also flag fouls the referee couldn't see.",
+        },
+        takeaway: "A referee in the middle, an assistant on each touchline, a fourth official between the benches.",
+        links: [IFAB("The referee", "the-referee"), IFAB("The other match officials", "the-other-match-officials"),
+          WIKI("Assistant referee", "Assistant_referee_(association_football)"), WIKI("Fourth official", "Fourth_official")],
+      },
+      {
+        id: "advantage",
+        title: "Playing advantage",
+        view: "half",
+        steps: [
+          {
+            text: "A defender trips the attacker, but the ball runs on to a teammate who's clear on goal.\n\nBlowing the whistle now would help the team that fouled, not the team that was fouled.",
+            marks: [home(84, 30, "Fouled"), away(84.5, 32.5), pass([85, 30], [98, 46]), home(98, 46, "Clear"), away(104, 28), away(103, 54), keeper()],
+          },
+          {
+            text: "So the referee plays advantage: both arms swept forward, and the game goes on. If the advantage doesn't come within a few seconds, they can still go back and give the free kick.",
+            marks: [ref(88, 44, "Play on!"), run([98, 46], [108, 43])],
+          },
+          {
+            text: "The foul isn't forgotten. At the next stoppage the referee can still show the defender a card. That's why you'll sometimes see a booking for something that happened a minute ago.",
+          },
+        ],
+        quiz: {
+          q: "A player is fouled, but their team keeps the ball and attacks. The referee sweeps both arms forward. What does it mean?",
+          options: ["The referee missed the foul", "Play on: advantage to the team that was fouled", "A free kick to the defending team"],
+          answer: 1,
+          why: "Both arms forward is the advantage signal. The referee saw the foul and let play go on because stopping it would help the side that fouled.",
+        },
+        takeaway: "Arms swept forward: the referee saw the foul, and stopping would only help the team that fouled.",
+        links: [IFAB("The referee", "the-referee"), IFAB("Fouls and misconduct", "fouls-and-misconduct")],
+      },
+      {
+        id: "var",
+        title: "VAR",
+        view: "box",
+        steps: [
+          {
+            text: "VAR is a team of referees watching replays in a video room. They can only step in on four kinds of decision: goals, penalties, straight red cards, and a card shown to the wrong player.",
+            marks: [board(92, 40, ["VAR CHECK", "Goal · Penalty · Red card · Wrong player"], "info")],
+          },
+          {
+            text: "On a judgement call, like whether a challenge was a foul, VAR only steps in for a clear and obvious error. The referee then goes to a screen beside the pitch for an on-field review and makes the final call.",
+            clear: true,
+            marks: [BOX, home(110, 46, "Goes down"), away(110.5, 48.5), { kind: "ring", at: [110, 46], label: "Penalty?" }, keeper()],
+          },
+          {
+            text: "Facts like offside are measured exactly, which is why a VAR offside can come down to a toe. Many competitions now use semi-automated offside: cameras track every player's body and the ball.",
+            clear: true,
+            marks: [{ kind: "line", x: 106, label: "Offside line" }, away(106, 36), home(106.7, 28, "A toe off"), keeper()],
+          },
+          {
+            text: "Checks take time, and a goal can be celebrated and then ruled out. Fans now often wait for the check before they fully believe a goal.",
+          },
+        ],
+        quiz: {
+          q: "Which of these can VAR not review?",
+          options: ["A penalty decision", "A free kick given in midfield", "A straight red card"],
+          answer: 1,
+          why: "VAR covers only goals, penalties, straight reds and mistaken identity. An everyday foul in midfield stays the referee's call.",
+        },
+        takeaway: "VAR checks goals, penalties, straight reds and mistaken identity, and only overturns clear and obvious errors.",
+        links: [IFAB("VAR protocol", "video-assistant-referee-var-protocol"), WIKI("Video assistant referee", "Video_assistant_referee")],
+      },
+      {
+        id: "freekicks",
+        title: "Direct, indirect and the keeper",
+        view: "half",
+        steps: [
+          {
+            text: "Most fouls give a direct free kick: the taker may score straight from it.",
+            marks: [home(96, 30, "Direct"), ball(96.8, 30.6), away(105, 33), away(105, 35), away(105, 37), keeper(119, 42), shot([96.8, 30.6], [120.5, 43])],
+          },
+          {
+            text: "Lesser offences give an indirect free kick, and the referee holds an arm straight up. The ball must touch another player before a goal can count, so the taker rolls it to a teammate first.",
+            clear: true,
+            marks: [ref(103, 54, "Arm up"), home(111, 40), ball(111.6, 40), home(111, 45, "Shoots"), pass([111.6, 40], [111.2, 44.5]),
+              away(119.4, 36), away(119.4, 38.5), away(119.4, 41), away(119.4, 43.5), keeper(119.5, 46)],
+          },
+          {
+            text: "One common reason is the back-pass rule. If a teammate deliberately kicks the ball back to their own keeper, the keeper may not pick it up. Doing it gives the other team an indirect free kick.",
+            clear: true,
+            marks: [away(98, 40, "Defender"), pass([98, 40], [116, 40], "Back-pass: feet only"), keeper(117, 40)],
+          },
+          {
+            text: "Keepers can't hold on to the ball for ever, either. Since 2025, a keeper who holds it for more than eight seconds gives away a corner. The referee counts the last five down on a raised hand.",
+            marks: [board(108, 56, ["8 SECONDS"], "gold")],
+          },
+        ],
+        quiz: {
+          q: "A defender passes back to their own keeper with their foot, and the keeper picks the ball up. What's given?",
+          options: ["Nothing: keepers can always use their hands in the box", "An indirect free kick to the other team", "A penalty"],
+          answer: 1,
+          why: "A deliberate kick back to the keeper must be played with the feet. Handling it gives the attackers an indirect free kick from where it happened.",
+        },
+        takeaway: "Arm up means indirect: someone else must touch it before it counts. Keepers can't handle a deliberate back-pass.",
+        links: [IFAB("Free kicks", "free-kicks"), WIKI("Indirect free kick", "Indirect_free_kick"), WIKI("Back-pass rule", "Back-pass_rule")],
+      },
+      {
+        id: "clock",
+        title: "Subs and the clock",
+        view: "full",
+        steps: [
+          {
+            text: "Most competitions allow five substitutions per team, made at no more than three stoppages (half-time doesn't count). Many also allow extra substitutes for head injuries.",
+            marks: [ref(60, 79.2, "Fourth official"), board(73, 60, ["OUT  9", "IN  19"], "gold")],
+          },
+          {
+            text: "The clock counts up, not down. '45+3' is the third minute added on at the end of the first half, and '90+5' the fifth at the end of the match. The board shows the minimum, so it can run longer.\n\nAdded time is not extra time: extra time is the 30 minutes a knockout plays when it's level.",
+            clear: true,
+            marks: [board(60, 40, ["90+5"], "gold")],
+          },
+          {
+            text: "New rules against time-wasting, from 2026: a player who is substituted must be off within 10 seconds. A player treated on the pitch stays off for a minute after the restart. And the referee can count five seconds down on throw-ins and goal kicks.",
+            clear: true,
+            marks: [board(60, 40, ["5 · 4 · 3 · 2 · 1"], "danger")],
+          },
+        ],
+        quiz: {
+          q: "The scoreboard shows 90+4. What's going on?",
+          options: ["Extra time has started", "The fourth minute of added time at the end of the match", "A four-minute break"],
+          answer: 1,
+          why: "+4 is time added on after 90 minutes to make up for stoppages. Extra time is a separate 30 minutes, only in knockouts.",
+        },
+        takeaway: "Five subs in three windows. '90+4' is added time, not extra time.",
+        links: [IFAB("The players", "the-players"), IFAB("Duration of the match", "the-duration-of-the-match"),
+          WIKI("Substitute", "Substitute_(association_football)")],
+      },
+      {
+        id: "lingo",
+        title: "Talk like a fan",
+        view: "half",
+        steps: [
+          {
+            text: "Scoring words. A brace is two goals by one player in a match, a hat-trick three. An own goal is one a player puts into their own net. A clean sheet means a team conceded nothing.",
+            marks: [board(90, 40, ["Brace = 2 goals", "Hat-trick = 3 goals", "Clean sheet = 0 conceded"], "gold", -1)],
+          },
+          {
+            text: "Defending words. A team that 'parks the bus' gets every player behind the ball, deep and narrow. That's a low block: hard to break through, but it leaves room to shoot from outside the box.",
+            clear: true,
+            marks: [away(112, 30), away(112, 37), away(112, 43), away(112, 50), away(104, 26), away(104, 34), away(104, 46), away(104, 54),
+              away(97, 36), away(97, 44), keeper(), { kind: "zone", x: [84, 96], y: [24, 56], tone: "info", label: "Room in front" }],
+          },
+          {
+            text: "A high line is the opposite: defenders step far up the pitch to squeeze the play, leaving space behind them for a quick runner.\n\nA false nine is a striker who drops into midfield, pulling defenders out of position.",
+            clear: true,
+            marks: [{ kind: "line", x: 82, label: "High line" }, away(82, 25), away(82, 35), away(82, 45), away(82, 55), keeper(112, 40),
+              { kind: "zone", x: [86, 110], y: [20, 60], tone: "info", label: "Space behind" }],
+          },
+          {
+            text: "And a derby is a match between local rivals, such as Boca Juniors against River Plate in Buenos Aires, or the Merseyside derby in Liverpool. Expect the loudest crowd of the season.",
+          },
+        ],
+        quiz: {
+          q: "A player scores three goals in one match. What's that called?",
+          options: ["A brace", "A hat-trick", "A clean sheet"],
+          answer: 1,
+          why: "Three goals by one player is a hat-trick. Two is a brace, and a clean sheet is about the team conceding none.",
+        },
+        takeaway: "Brace 2, hat-trick 3, clean sheet 0 against. High line: space behind it. Low block: space in front.",
+        links: [WIKI("Glossary of football terms", "Glossary_of_association_football_terms")],
+      },
+    ],
+  },
+  {
+    id: "competitions",
+    title: "Competitions",
+    blurb: "League tables, cup ties and the big tournaments.",
+    icon: "trophy",
+    lessons: [
+      {
+        id: "league",
+        title: "Leagues and the table",
+        view: "full",
+        steps: [
+          {
+            text: "In a league every team plays every other team twice, once at home and once away. England's Premier League has 20 teams, so each plays 38 games from August to May.",
+            marks: [board(60, 40, ["20 teams", "38 games each"], "gold")],
+          },
+          {
+            text: "A win earns 3 points, a draw 1, a defeat none. Teams level on points are usually split by goal difference: goals scored minus goals conceded. Some leagues, like Spain's, compare head-to-head results first.",
+            clear: true,
+            marks: [board(60, 40, ["1   Blues    70 pts   GD +30", "2   Reds     70 pts   GD +22", "3   Greens   64 pts   GD +19"], "info")],
+          },
+          {
+            text: "At the bottom, the worst teams are relegated to the division below, and the best from that division are promoted to take their place. Near the top, the prize is a place in next season's European competitions.",
+            clear: true,
+            marks: [board(60, 40, ["1–4   Europe next season", "5–17   Safe", "18–20   Relegated"], "info")],
+          },
+        ],
+        quiz: {
+          q: "Two Premier League teams finish on 70 points. One has a goal difference of +30, the other +22. Who finishes higher?",
+          options: ["The team on +30", "The team on +22", "They share the place"],
+          answer: 0,
+          why: "Level on points, the Premier League looks at goal difference first, so +30 beats +22.",
+        },
+        takeaway: "3 for a win, 1 for a draw. Level on points: goal difference. Bottom teams go down.",
+        links: [WIKI("League table", "League_table"), WIKI("Promotion and relegation", "Promotion_and_relegation")],
+      },
+      {
+        id: "cups",
+        title: "Cup ties and shoot-outs",
+        view: "half",
+        steps: [
+          {
+            text: "A cup is a knockout: lose and you're out. Some ties have two legs, one at each team's ground, and the two scores are added together into the aggregate.",
+            marks: [board(90, 40, ["1st leg   Blues 2–1 Reds", "2nd leg   Reds 1–0 Blues", "Aggregate   2–2"], "gold", 2)],
+          },
+          {
+            text: "Level on aggregate used to be settled by away goals: the team that scored more on the other side's ground went through. UEFA scrapped that rule in 2021, so now it's extra time and then penalties.",
+          },
+          {
+            text: "In a shoot-out each team takes five penalties, in turn. If it's still level, it goes to sudden death, one each, until one side scores and the other misses. Only players on the pitch at the end may take one.",
+            clear: true,
+            marks: [home(107, 40, "Taker"), ball(108, 40), keeper(119.6, 40), { kind: "ring", at: [108, 40], label: "Penalty spot" }],
+          },
+        ],
+        quiz: {
+          q: "A two-legged Champions League tie ends 2–2 on aggregate. What happens?",
+          options: ["The team with more away goals goes through", "Extra time, then penalties if it's still level", "A third match"],
+          answer: 1,
+          why: "Away goals no longer count in UEFA competitions, so a level tie goes to extra time, then a shoot-out.",
+        },
+        takeaway: "Two legs are added together. Level means extra time, then five penalties each, then sudden death.",
+        links: [WIKI("Two-legged tie", "Two-legged_tie"), WIKI("Away goals rule", "Away_goals_rule"),
+          IFAB("Determining the outcome", "determining-the-outcome-of-a-match")],
+      },
+      {
+        id: "bigstage",
+        title: "The big competitions",
+        view: "full",
+        steps: [
+          {
+            text: "Most countries have a league and at least one cup, so a club can win more than one trophy a season: two is a double, three a treble.",
+            marks: [board(60, 40, ["League + Cup = Double"], "gold")],
+          },
+          {
+            text: "The best clubs also play in Europe, midweek. Since 2024 the Champions League starts with one big league phase: 36 clubs, eight games each. The top eight go straight to the last 16, and 9th to 24th play off for the other places.",
+            clear: true,
+            marks: [board(60, 40, ["1–8   Last 16", "9–24   Play-off", "25–36   Out"], "info")],
+          },
+          {
+            text: "National teams take over a few times a year. The World Cup comes every four years, and each continent has its own championship: the Euros, the Copa América, the Africa Cup of Nations, the Asian Cup.\n\nEvery shot in this game comes from a World Cup, a Euros, a Copa América or an AFCON.",
+            clear: true,
+            marks: [board(60, 40, ["World Cup · Euros · Copa América · AFCON"], "gold")],
+          },
+        ],
+        quiz: {
+          q: "A club finishes 5th in the Champions League league phase. What happens next?",
+          options: ["Straight into the last 16", "A play-off round", "They're knocked out"],
+          answer: 0,
+          why: "The top eight go straight to the last 16. 9th to 24th play off, and 25th or lower are out.",
+        },
+        takeaway: "League and cup at home, Europe in midweek, national teams in between.",
+        links: [WIKI("UEFA Champions League", "UEFA_Champions_League"), WIKI("FIFA World Cup", "FIFA_World_Cup")],
       },
     ],
   },

@@ -396,10 +396,15 @@ answering fast, and a combo multiplier for consecutive exact reads (×1.25, ×1.
 ![Boss fight](docs/game_boss.png)
 
 **The Academy.** The game assumes you can read a football picture, so it
-teaches you to first. 17 short lessons in four modules take a newcomer from
-zero: the pitch, the rules (restarts, fouls, offside), positions and
-formations, how attacks are built (crosses, cutbacks, through balls, counters,
-set pieces), and finally xG, the chance bands and post-shot xG. Each lesson
+teaches you to first. 26 short lessons in six modules take a newcomer from
+zero to following a live match: the pitch, the rules (restarts, fouls,
+handball, offside), positions and formations, matchday (the officials and their
+signals, advantage, VAR, direct and indirect free kicks, the back-pass and
+eight-second rules, substitutions, added time, the 2026 time-wasting rules, and
+the words fans use), competitions (league tables, two-legged ties, shoot-outs,
+the Champions League format), how attacks are built (crosses, cutbacks, through
+balls, counters, set pieces), and finally xG, the chance bands and post-shot
+xG. Each lesson
 steps through an animated diagram drawn on the same pitch the game uses, ends
 with a check question, and links out to the IFAB Laws of the Game, Wikipedia
 and StatsBomb for more. First-time players are offered the Academy before they

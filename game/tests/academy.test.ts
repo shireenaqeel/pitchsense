@@ -60,6 +60,20 @@ describe("curriculum", () => {
     }
   });
 
+  it("keeps every step short enough for the lesson panel", () => {
+    for (const l of LESSONS) for (const st of l.steps) expect(st.text.length, l.id).toBeLessThanOrEqual(400);
+  });
+
+  it("gives every board at least one line, and a real line to highlight", () => {
+    for (const l of LESSONS) {
+      for (const m of l.steps.flatMap((s) => s.marks ?? [])) {
+        if (m.kind !== "board") continue;
+        expect(m.lines.length, l.id).toBeGreaterThan(0);
+        expect(m.hl ?? 0, l.id).toBeLessThan(m.lines.length);
+      }
+    }
+  });
+
   it("explains every concept the game tags, with a real lesson", () => {
     for (const c of GAME_CONCEPTS) {
       expect(CONCEPT_NOTES[c], c).toBeDefined();

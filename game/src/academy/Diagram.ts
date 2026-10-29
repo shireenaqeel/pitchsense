@@ -11,7 +11,10 @@ import type { Mark, Pt, Tone } from "./curriculum";
 const TONES: Record<Tone, number> = { accent: C.accent, gold: C.gold, danger: C.miss, info: 0x60a5fa };
 
 /** Zones and lines sit under arrows, which sit under players. */
-const LAYER: Record<Mark["kind"], number> = { zone: 0, line: 0, cone: 0, arrow: 1, ring: 2, spot: 2, player: 3, ball: 4 };
+const LAYER: Record<Mark["kind"], number> = { zone: 0, line: 0, cone: 0, arrow: 1, ring: 2, spot: 2, player: 3, ball: 4, board: 5 };
+
+/** Officials wear black, outlined in white so they stand out on the grass. */
+const REF = 0x111827;
 
 export class Diagram {
   private delay = 0;
@@ -57,6 +60,9 @@ export class Diagram {
   private label(x: number, y: number, text: string, color = 0xffffff, originY = 0): void {
     const t = this.scene.add.text(x, y, text, body(13, color, "800")).setOrigin(0.5, originY);
     t.setStroke("#000000", 4);
+    // Keep labels by the touchlines inside the pitch, where the mask can't cut them.
+    const half = t.width / 2 + 4;
+    t.x = Phaser.Math.Clamp(x, this.pitch.ox + half, this.pitch.ox + this.pitch.w - half);
     this.pop(t, true);
   }
 
@@ -65,8 +71,12 @@ export class Diagram {
     switch (m.kind) {
       case "player": {
         const p = this.at(m.at);
-        const color = m.side === "keeper" ? theme.keeper : m.side === "away" ? theme.away : theme.home;
-        this.pop(scene.add.circle(p.x, p.y, this.r, color).setStrokeStyle(2, 0x000000, 0.6));
+        if (m.side === "ref") {
+          this.pop(scene.add.circle(p.x, p.y, this.r * 0.9, REF).setStrokeStyle(2, 0xffffff, 0.95));
+        } else {
+          const color = m.side === "keeper" ? theme.keeper : m.side === "away" ? theme.away : theme.home;
+          this.pop(scene.add.circle(p.x, p.y, this.r, color).setStrokeStyle(2, 0x000000, 0.6));
+        }
         if (m.label) this.label(p.x, p.y + this.r + 4, m.label);
         return;
       }
@@ -118,6 +128,20 @@ export class Diagram {
         const color = BAND_COLORS[m.band];
         this.pop(scene.add.circle(p.x, p.y, this.r * 1.1, color).setStrokeStyle(3, 0xffffff, 0.95));
         if (m.label) this.label(p.x, p.y - this.r * 1.5, m.label, color, 1);
+        return;
+      }
+      case "board": {
+        const p = this.at(m.at);
+        const tone = TONES[m.tone ?? "gold"];
+        const big = m.lines.length === 1 && m.lines[0].length <= 6;
+        const texts = m.lines.map((line, i) =>
+          scene.add.text(0, (i - (m.lines.length - 1) / 2) * 24, line, body(big ? 30 : 15, i === (m.hl ?? 0) ? tone : 0xffffff, "800")).setOrigin(0.5));
+        const w = Math.max(...texts.map((t) => t.width)) + 32;
+        const h = m.lines.length * 24 + (big ? 30 : 16);
+        const bg = scene.add.graphics();
+        bg.fillStyle(0x0b1220, 0.92).fillRoundedRect(-w / 2, -h / 2, w, h, 10);
+        bg.lineStyle(2, tone, 0.95).strokeRoundedRect(-w / 2, -h / 2, w, h, 10);
+        this.pop(scene.add.container(p.x, p.y, [bg, ...texts]));
         return;
       }
       case "arrow":

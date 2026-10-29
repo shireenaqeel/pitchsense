@@ -11,6 +11,7 @@ import { confetti, currentLevel, settle } from "../ui/common";
 import { icon, inline } from "../ui/icons";
 import { body, C, crisp, H, title, W } from "../ui/theme";
 import { backButton, Button, floatText, goTo, panel } from "../ui/widgets";
+import { academyPage } from "./AcademyScene";
 
 const PANEL_X = 760;
 const PANEL_W = 490;
@@ -47,7 +48,7 @@ export class LessonScene extends Phaser.Scene {
     crisp(this);
     this.cameras.main.fadeIn(250);
     this.add.rectangle(W / 2, H / 2, W, H, C.bg);
-    backButton(this, "Academy");
+    backButton(this, "Academy", { page: academyPage(this.lesson.id) });
     const mod = moduleOf(this.lesson.id)!;
     const n = LESSONS.indexOf(this.lesson) + 1;
     this.add.text(190, 30, `${mod.title.toUpperCase()} · LESSON ${n} OF ${LESSONS.length}`, body(12, C.muted, "800")).setOrigin(0, 0.5);
@@ -232,7 +233,7 @@ export class LessonScene extends Phaser.Scene {
     const i = LESSONS.indexOf(this.lesson);
     const next = LESSONS[i + 1];
     this.buttons.push(new Button(this, PANEL_X + 104, 662, { w: 160, h: 52, label: "Academy", icon: "book", size: 16 },
-      () => goTo(this, "Academy")));
+      () => goTo(this, "Academy", { page: academyPage(this.lesson.id) })));
     const go = next ? () => goTo(this, "Lesson", { id: next.id }) : () => goTo(this, "Career");
     this.buttons.push(new Button(this, PANEL_X + PANEL_W - 159, 662, {
       w: 270, h: 52, label: next ? "Next lesson" : "Play World Tour", icon: next ? "next" : "trophy", size: 18, display: true, color: C.accent,

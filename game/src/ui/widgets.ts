@@ -187,9 +187,9 @@ export function bar(
   };
 }
 
-export function backButton(scene: Phaser.Scene, to = "Menu"): Button {
-  const b = new Button(scene, 90, 44, { w: 140, h: 44, label: "Back", size: 16, icon: "back" }, () => goTo(scene, to));
-  scene.input.keyboard?.on("keydown-ESC", () => goTo(scene, to));
+export function backButton(scene: Phaser.Scene, to = "Menu", data?: object): Button {
+  const b = new Button(scene, 90, 44, { w: 140, h: 44, label: "Back", size: 16, icon: "back" }, () => goTo(scene, to, data));
+  scene.input.keyboard?.on("keydown-ESC", () => goTo(scene, to, data));
   return b;
 }
 
