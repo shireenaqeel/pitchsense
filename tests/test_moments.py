@@ -10,6 +10,7 @@ from pitchsense.moments import (
     compact_360,
     decision,
     match_moments,
+    orient,
     outcome,
     pick,
     zone,
@@ -112,3 +113,9 @@ def test_moment_record_uses_choice_indices_and_display_names():
          "outcome": "shot", "rates": [0.1, 0.5, 0.3, 0.1]}
     r = moment_record(m, "Short Name")
     assert r["call"] == CHOICES.index("cross") and r["player"] == "Short Name" and r["match"] == 3
+
+
+def test_orient_turns_a_backwards_frame_to_match_its_event():
+    frame = [[30.0, 20.0, ACTOR], [25.0, 40.0, OPPONENT]]
+    assert orient(frame, [90.0, 60.0]) == [[90.0, 60.0, ACTOR], [95.0, 40.0, OPPONENT]]
+    assert orient(frame, [30.5, 20.0]) == frame  # already the right way round

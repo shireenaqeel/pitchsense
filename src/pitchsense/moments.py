@@ -147,6 +147,23 @@ def compact_360(frame: dict) -> list:
     return players
 
 
+def orient(players: list, at) -> list:
+    """Flip a frame end to end if it faces the other way from its event.
+
+    A few 360 frames (under 2%) are recorded in the opposite direction, with the
+    actor at the mirror image of the event's location. Each frame is turned so
+    the actor stands where the event happened.
+    """
+    actor = next((p for p in players if p[2] == ACTOR), None)
+    if actor is None:
+        return players
+    same = _distance(actor, at)
+    flipped = _distance((120 - actor[0], 80 - actor[1]), at)
+    if flipped >= same:
+        return players
+    return [[round(120 - x, 1), round(80 - y, 1), kind] for x, y, kind in players]
+
+
 def zone(x: float, y: float) -> int:
     """Index of the pitch zone containing (x, y), row-major over ZONE_X x ZONE_Y."""
     col = next(i for i in range(len(ZONE_Y) - 1) if y < ZONE_Y[i + 1])
@@ -184,7 +201,7 @@ def match_moments(events: list, frames: list, match_id: int) -> list:
         frame = by_id.get(e.get("id"))
         if call is None or not loc or loc[0] < MIN_X or frame is None:
             continue
-        players = compact_360(frame)
+        players = orient(compact_360(frame), loc)
         if sum(1 for p in players if p[2] != ACTOR) < MIN_VISIBLE or not any(p[2] == ACTOR for p in players):
             continue
         same = [ev for ev in events if ev.get("possession") == e.get("possession")
