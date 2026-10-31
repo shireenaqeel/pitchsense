@@ -4,9 +4,14 @@
 # deploy/huggingface. The job then waits for the Space to build and start, and
 # fails (which emails the repo owner) if it doesn't.
 #
-# Secrets: HF_TOKEN (a fine-grained token that can write to this Space only),
-# and SUPABASE_URL and SUPABASE_KEY, which are copied to the Space's own
-# secrets so the leaderboard is kept in Supabase. Skipped until HF_TOKEN is set.
+# Secrets live in the "production" environment, which only master can use:
+# HF_TOKEN (a fine-grained token that can write to this Space only), and
+# SUPABASE_URL and SUPABASE_KEY, which are copied to the Space's own secrets so
+# the leaderboard is kept in Supabase. Skipped until HF_TOKEN is set.
+#
+# workflow_run fires for any Tests run whose branch is *named* master, which
+# includes a pull request from a fork's own master. The job therefore only runs
+# for a push to this repository, so outside code never sees the secrets.
 name: Hugging Face
 
 on:
@@ -29,8 +34,14 @@ env:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'master' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Check for the token
         id: token

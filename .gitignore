@@ -10,8 +10,14 @@ __pycache__/
 venv/
 env/
 
-# Environment / secrets
+# Environment / secrets: keys live in GitHub's "production" environment and
+# the hosts' own secret settings, never in the repo.
 .env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*.pem
+*.key
 
 # Data and model artifacts. The built caches and trained models are committed
 # so the deployed app starts without re-downloading 314 matches; the local

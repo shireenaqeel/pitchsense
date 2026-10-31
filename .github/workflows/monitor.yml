@@ -4,6 +4,9 @@
 # The checks also keep the free tiers awake: a Hugging Face Space sleeps after
 # 48 hours without visitors, and a Supabase project pauses after a week without
 # requests.
+#
+# Only the Supabase check uses secrets, from the master-only "production"
+# environment; the Hugging Face token is never needed here.
 name: Monitor
 
 on:
@@ -21,14 +24,15 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Game (GitHub Pages)
         run: curl --fail --silent --show-error --output /dev/null --retry 3 --retry-delay 10 "$GAME_URL"
       - name: App (Hugging Face Space)
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          if [ -z "$HF_TOKEN" ]; then echo "No Space deployed yet"; exit 0; fi
+          if [ "$(curl --silent --output /dev/null --write-out '%{http_code}' "$SPACE_URL")" = 404 ]; then
+            echo "No Space deployed yet"; exit 0
+          fi
           # A sleeping Space takes a minute or two to wake, so keep trying.
           curl --fail --silent --show-error --retry 10 --retry-delay 30 --retry-all-errors "$SPACE_URL/_stcore/health"
       - name: Leaderboard (Supabase)
