@@ -1,0 +1,14 @@
+# Settings for the deployed app.
+
+[client]
+# Visitors see a short "something went wrong" message, not the traceback;
+# the full error goes to the server log.
+showErrorDetails = "none"
+toolbarMode = "viewer"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
+enableXsrfProtection = true

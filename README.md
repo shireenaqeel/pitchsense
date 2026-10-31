@@ -602,7 +602,7 @@ Requires Python 3.11+.
 python -m venv .venv
 .venv/Scripts/activate        # Windows
 # source .venv/bin/activate   # macOS / Linux
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # the app's requirements plus pytest
 ```
 
 ## Run
