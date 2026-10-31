@@ -5,6 +5,7 @@ An interactive tool that teaches football tactics and concepts (xG, pressing, of
 Unlike a typical xG dashboard, the whole point here is a real pipeline: **real match data → trained ML models → animated replay → interactive quiz → adaptive personalization.** The predictions come from models trained on data, not from an LLM pretending to be a football expert.
 
 **Play the browser game: [shireenaqeel.github.io/pitchsense](https://shireenaqeel.github.io/pitchsense/)** (see [The game](#the-game)).
+For how it's deployed and run, see [How it's built and run](#how-its-built-and-run).
 
 ## Problem
 
@@ -240,9 +241,13 @@ src/pitchsense/
   export_game.py # bake shots, xG, reasons, career and puzzles into JSON for the game
 streamlit_app.py  # the app: lessons, quiz, sandbox, explorers
 game/           # the browser game (Phaser 3 + TypeScript + Vite), see "The game"
-tests/          # unit tests for the geometry, features, and rendering
-data/           # cached raw data (git-ignored)
-models/         # trained models + metrics (git-ignored)
+tests/          # unit tests, plus a smoke test that renders the whole app
+data/           # parquet caches (committed); raw downloads stay local
+models/         # trained models + metrics (committed)
+deploy/huggingface/ # the Space's Dockerfile, card and publish script
+supabase/       # the leaderboard table, its security rules and throttle
+.streamlit/     # the deployed app's settings
+.github/        # CI/CD, monitoring and Dependabot
 docs/           # rendered example figures
 ```
 
@@ -611,6 +616,35 @@ shows both scores next to the detected role, and the "Under the hood" expander
 shows role medians. The full table goes to `data/player_ratings.parquet`, and
 the report (coverage, stat correlations, top players) goes to
 `models/ratings_metrics.json`.
+
+## How it's built and run
+
+```mermaid
+flowchart LR
+  SB[(StatsBomb open data)] -->|fetch once, offline| P[Data pipeline<br/>src/pitchsense]
+  P -->|parquet caches + trained models,<br/>committed| R[(GitHub repo)]
+  R -->|Tests pass| HF[Streamlit app<br/>Hugging Face Space]
+  R -->|export + build| GP[Browser game<br/>GitHub Pages]
+  HF <-->|REST, publishable key| DB[(Leaderboard<br/>Supabase Postgres)]
+```
+
+The heavy work (downloading 300+ matches and training the models) happens once,
+offline. What ships is about 6 MB of parquet caches and model files, so the app
+starts fast, makes no network calls of its own, and doesn't depend on StatsBomb
+being up. The only state that changes while it runs is the leaderboard.
+
+| Concern | How it's handled |
+|---|---|
+| **Hosting** | The Streamlit app runs as a Docker Space on Hugging Face ([`deploy/huggingface`](deploy/huggingface)). The game is a static site on GitHub Pages. |
+| **Caching** | Every data and model loader is cached with `st.cache_data` / `st.cache_resource`, so each loads once per process. GitHub Pages serves the game through its CDN. |
+| **Database** | The leaderboard is a Postgres table on Supabase, guarded by row-level security, check constraints and an insert throttle ([details](#leaderboard)). |
+| **Security** | No secrets in the code: the Hugging Face token and Supabase key live in GitHub's encrypted secrets, and the key is copied to the Space's secrets on deploy. The container runs as a non-root user. Visitors never see tracebacks. Dependencies are pinned and audited, and the game ships a strict Content Security Policy. |
+| **Rate limiting** | Saving a score is the only write: one per game, 10 a minute in the app, 30 a minute in the database. |
+| **CI/CD** | The [Tests](.github/workflows/tests.yml) workflow runs pytest, including a smoke test that renders every tab, on each push and pull request. On `master`, a pass triggers the [Hugging Face](.github/workflows/huggingface.yml) deploy, which waits for the Space to build and start. The [Game](.github/workflows/game.yml) workflow tests, builds and publishes the game. |
+| **Logging and errors** | The app logs to stdout (start-up, leaderboard saves and failures), alongside Streamlit's own log of any uncaught exception with its traceback. The Space's Logs tab shows both. |
+| **Monitoring and alerts** | The [Monitor](.github/workflows/monitor.yml) workflow checks the game, the app and the database every six hours. Any failed check or deploy fails its run, and GitHub emails the owner. |
+| **Dependencies** | Dependabot opens weekly update pull requests for pip, npm, Actions and the Docker base image. Each one runs the tests. |
+| **Scaling** | The game is static and scales with the CDN. The app is one Python process (2 vCPU, 16 GB on the free tier, about 550 MB used), comfortable for a few dozen people at once. |
 
 ## Setup
 
