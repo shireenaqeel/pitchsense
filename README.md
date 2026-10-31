@@ -231,7 +231,7 @@ src/pitchsense/
   sandbox.py    # build a made-up chance and score it through the real pipeline
   lessons.py    # bite-sized lessons: explain, spot the better chance, practise
   concepts.py   # concept tagging, per-concept progress, adaptive shot selection
-  leaderboard.py # persistent local high-score table (pure, tested)
+  leaderboard.py # shared high-score table: Supabase or a local file (tested)
   possessions.py # possession -> tactical feature vector (pure, tested)
   tactics.py    # cluster possessions into tactical patterns (k-means)
   players.py    # player -> behavioural feature vector (pure, tested)
@@ -348,17 +348,34 @@ tagging, progress tracking, and weighted selection are pure functions in
 
 ### Leaderboard
 
-Sessions can be saved to a persistent local leaderboard. Because a session can
+Sessions can be saved to a shared leaderboard. Because a session can
 be any length, players are ranked by their **average points per round** rather
 than a raw total, and must complete at least five rounds to qualify so a single
 lucky guess cannot top the board. Each entry also records how many points per
 round the player beat the *model's* own estimate by, which doubles as the
-tie-break. There are no accounts — the board is a single JSON file on disk
-(`data/leaderboard.json`, git-ignored), so it is a local scoreboard rather than
-an online one. The store, ranking, and qualification rules live as pure functions
-in `leaderboard.py` and are unit tested against a temporary file; the quiz shows
-the top ten and reveals a save form once you have qualified. The leaderboard lives in Expert mode,
-where every score uses the same Brier scale against the real outcome.
+tie-break. There are no accounts: a row is just the name the player types.
+
+On the deployed app the board is a Postgres table on Supabase
+([`supabase/leaderboard.sql`](supabase/leaderboard.sql)), so scores survive
+restarts and redeploys. The app reaches it through Supabase's REST API with the
+project's publishable key, held as a server-side secret. The table enforces its
+own rules, so they hold even if the key leaked:
+
+- the key can read and insert rows, never update or delete them;
+- every row must look like a real result (a 1 to 20 character name, 0 to 100
+  points per round, today's date);
+- inserts are throttled to 30 a minute across everyone.
+
+The app adds its own limit of 10 saves a minute and one save per game. If
+Supabase can't be reached, the board says so and the quiz carries on.
+
+Run locally without `SUPABASE_URL` and `SUPABASE_KEY` and the same board is a
+JSON file (`data/leaderboard.json`, git-ignored), written atomically under a
+lock so two sessions saving at once can't lose a row. The ranking rules are pure
+functions in `leaderboard.py`, and both stores are unit tested, Supabase against
+a fake HTTP session. The quiz shows the top ten and reveals a save form once you
+have qualified. The leaderboard lives in Expert mode, where every score uses the
+same Brier scale against the real outcome.
 
 ## The game
 
@@ -468,8 +485,9 @@ built page carries a Content-Security-Policy (added at build time in
 `vite.config.ts`, since GitHub Pages can't send headers) that allows only
 same-origin code; the fonts ship with the game, so a visit makes no third-party
 requests. In the workflow only the deploy job can publish, and every action is
-pinned to a commit. The Streamlit leaderboard cleans names and keeps only the
-best 200 rows, so a public deployment can't be flooded.
+pinned to a commit. The Streamlit leaderboard cleans names and is rate limited
+in the app and in the database, so a public deployment can't be flooded (see
+[Leaderboard](#leaderboard)).
 
 ## Tactical pattern classifier
 
@@ -770,6 +788,6 @@ model and cross-tournament generalisation tests).
    labelled into build-up / counter-attack / regain, wired into the replay);
    **player-role clustering** (k-means + PCA over behavioural stats, labelled and
    purity-checked against nominal positions, with a role map); and a
-   **leaderboard** (persistent local high-score table, ranked by average points
+   **leaderboard** (a shared high-score table on Supabase, ranked by average points
    per round with a model-beating tie-break). All three are also surfaced in the
    app's explorer tabs. **All stretch goals shipped.**

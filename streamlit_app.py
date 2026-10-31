@@ -14,11 +14,17 @@ has not been built yet.
 """
 
 import json
+import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+
+# Our own log lines go to stdout next to Streamlit's, which logs uncaught app
+# exceptions with their traceback; on Hugging Face both show in the Logs tab.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("pitchsense.app")
 
 import joblib
 import matplotlib.pyplot as plt
@@ -44,7 +50,7 @@ from pitchsense.features import (
     placement_from_center,
     placement_height,
 )
-from pitchsense.leaderboard import MIN_ROUNDS, add_score, load_scores, make_entry, top
+from pitchsense.leaderboard import MIN_ROUNDS, LeaderboardError, board, get_store, make_entry, save, top
 from pitchsense.lessons import (
     LESSONS,
     LESSONS_BY_ID,
@@ -547,11 +553,23 @@ def finish_lesson(lesson, key: str):
 # --------------------------------------------------------------------------- #
 # 🎯 Shot quiz (free play)
 # --------------------------------------------------------------------------- #
+@st.cache_resource
+def leaderboard_store():
+    """Supabase on the deployed app, a local JSON file otherwise."""
+    store = get_store()
+    log.info("Leaderboard store: %s", store.name)
+    return store
+
+
 def render_leaderboard(g: dict):
     """Show the top scores and, once qualified, a form to save this session."""
     st.subheader("🏆 Leaderboard")
-    leaders = top(load_scores(), n=10)
-    if leaders:
+    store = leaderboard_store()
+    scores = board(store)
+    leaders = top(scores or [], n=10)
+    if scores is None:
+        st.caption("The leaderboard can't be reached right now. Your game still counts, so try saving in a bit.")
+    elif leaders:
         st.dataframe(
             [
                 {"#": i + 1, "Player": s["name"], "Avg": f"{s['avg_points']:.0f}",
@@ -569,9 +587,13 @@ def render_leaderboard(g: dict):
         with st.form("save_score"):
             name = st.text_input("Name for the leaderboard", max_chars=20)
             if st.form_submit_button("Save my score"):
-                add_score(make_entry(name, g["points"], g["model_points"], g["rounds"]))
-                g["saved"] = True
-                st.rerun()
+                try:
+                    save(store, make_entry(name, g["points"], g["model_points"], g["rounds"]))
+                except LeaderboardError as err:
+                    st.warning(str(err))
+                else:
+                    g["saved"] = True
+                    st.rerun()
     else:
         st.caption(f"Play {MIN_ROUNDS - g['rounds']} more round(s) to save a score.")
 

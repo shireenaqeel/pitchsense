@@ -1,15 +1,24 @@
-"""Unit tests for the persistent quiz leaderboard (uses a temp file)."""
+"""Unit tests for the quiz leaderboard (temp files and a fake HTTP session)."""
 
+import threading
 from datetime import datetime, timezone
 
 import pytest
+import requests
 
 from pitchsense.leaderboard import (
+    FileStore,
+    LeaderboardError,
+    RateLimiter,
+    SupabaseStore,
     add_score,
+    board,
     clean_name,
+    get_store,
     load_scores,
     make_entry,
     ranked,
+    save,
     save_scores,
     top,
 )
@@ -104,3 +113,89 @@ def test_add_score_caps_the_board_keeping_the_best(tmp_path):
         add_score(make_entry(f"p{i}", i * 10 * 5, 0, 5), path, max_entries=5)
     names = [s["name"] for s in load_scores(path)]
     assert names == ["p7", "p6", "p5", "p4", "p3"]
+
+
+def test_concurrent_saves_keep_every_row(tmp_path):
+    path = tmp_path / "board.json"
+    threads = [threading.Thread(target=add_score, args=(make_entry(f"p{i}", 300, 200, 5), path))
+               for i in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(load_scores(path)) == 20
+
+
+def test_rate_limiter_allows_a_burst_then_recovers():
+    now = [0.0]
+    limiter = RateLimiter(3, window=60, clock=lambda: now[0])
+    assert [limiter.allow() for _ in range(4)] == [True, True, True, False]
+    now[0] = 61
+    assert limiter.allow()
+
+
+class FakeResponse:
+    def __init__(self, data=None, fail=False):
+        self.data, self.fail = data, fail
+
+    def raise_for_status(self):
+        if self.fail:
+            raise requests.HTTPError("500")
+
+    def json(self):
+        return self.data
+
+
+class FakeSession:
+    def __init__(self, rows=None, fail=False):
+        self.rows, self.fail, self.calls = rows or [], fail, []
+
+    def get(self, url, params, headers, timeout):
+        self.calls.append(("GET", url, params, headers))
+        return FakeResponse(self.rows, self.fail)
+
+    def post(self, url, json, headers, timeout):
+        self.calls.append(("POST", url, json, headers))
+        return FakeResponse(fail=self.fail)
+
+
+def test_supabase_store_reads_ranked_rows_and_inserts_only_known_fields():
+    row = make_entry("Ana", 300, 200, 5)
+    http = FakeSession(rows=[row])
+    store = SupabaseStore("https://abc.supabase.co/", "sb_publishable_x", session=http)
+    assert store.load() == [row]
+    store.add({**row, "extra": "ignored"})
+    (_, url, params, headers), (_, _, sent, post_headers) = http.calls
+    assert url == "https://abc.supabase.co/rest/v1/leaderboard"
+    assert params["rounds"] == "gte.5" and params["order"].startswith("avg_points.desc")
+    assert headers == {"apikey": "sb_publishable_x"}
+    assert "extra" not in sent and sent["name"] == "Ana"
+    assert post_headers["Prefer"] == "return=minimal"
+
+
+def test_supabase_store_sends_a_legacy_key_as_a_bearer_token_too():
+    store = SupabaseStore("https://abc.supabase.co", "eyJhbGciOi.legacy.jwt", session=FakeSession())
+    assert store.headers["Authorization"] == "Bearer eyJhbGciOi.legacy.jwt"
+
+
+def test_get_store_uses_supabase_only_when_configured():
+    assert isinstance(get_store({}), FileStore)
+    assert isinstance(get_store({"SUPABASE_URL": "https://abc.supabase.co"}), FileStore)
+    assert isinstance(get_store({"SUPABASE_URL": "https://abc.supabase.co", "SUPABASE_KEY": "k"}), SupabaseStore)
+
+
+def test_board_is_none_when_the_store_is_down():
+    store = SupabaseStore("https://abc.supabase.co", "k", session=FakeSession(fail=True))
+    assert board(store) is None
+
+
+def test_save_reports_outages_and_rate_limits_as_leaderboard_errors(tmp_path):
+    down = SupabaseStore("https://abc.supabase.co", "k", session=FakeSession(fail=True))
+    with pytest.raises(LeaderboardError, match="can't be reached"):
+        save(down, make_entry("A", 300, 200, 5), limiter=RateLimiter(5))
+    store = FileStore(tmp_path / "board.json")
+    limiter = RateLimiter(1)
+    save(store, make_entry("A", 300, 200, 5), limiter=limiter)
+    with pytest.raises(LeaderboardError, match="Try again in a minute"):
+        save(store, make_entry("B", 300, 200, 5), limiter=limiter)
+    assert [s["name"] for s in store.load()] == ["A"]
