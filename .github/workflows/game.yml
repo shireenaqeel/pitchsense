@@ -1,11 +1,13 @@
 # Build the browser game from the committed caches and models, and publish it
 # to GitHub Pages. The game data is exported here rather than committed, so it
-# can never drift from the models in the repo.
+# can never drift from the models in the repo. Pull requests build and test the
+# game but don't publish it.
 name: Game
 
 on:
   push:
     branches: [master]
+  pull_request:
   workflow_dispatch:
 
 # Read-only by default. Only the deploy job, which runs no third-party
@@ -14,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -46,6 +48,7 @@ jobs:
           path: game/dist
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     permissions:
