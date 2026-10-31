@@ -1,7 +1,7 @@
 # The Streamlit app as a Hugging Face Docker Space. The build context is the
 # folder the "Hugging Face" workflow assembles: the app, its package, the
 # committed caches and the trained models.
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 # XGBoost needs the OpenMP runtime.
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
