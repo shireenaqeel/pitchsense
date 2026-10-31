@@ -1,12 +1,19 @@
-# Publish the Streamlit app to its Hugging Face Space. The Space holds only
-# what the app needs at runtime, assembled here, plus the Space's own Dockerfile
-# and README from deploy/huggingface. Skipped until the HF_TOKEN secret is set.
+# Publish the Streamlit app to its Hugging Face Space, once the tests have
+# passed on master. The Space holds only what the app needs at runtime,
+# assembled here, plus the Space's own Dockerfile and README from
+# deploy/huggingface. The job then waits for the Space to build and start, and
+# fails (which emails the repo owner) if it doesn't.
+#
+# Secrets: HF_TOKEN (a fine-grained token that can write to this Space only),
+# and SUPABASE_URL and SUPABASE_KEY, which are copied to the Space's own
+# secrets so the leaderboard is kept in Supabase. Skipped until HF_TOKEN is set.
 name: Hugging Face
 
 on:
-  push:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
     branches: [master]
-    paths-ignore: ["game/**", "docs/**", "README.md"]
   workflow_dispatch:
 
 permissions:
@@ -18,9 +25,11 @@ concurrency:
 
 env:
   SPACE: shireenaqeel/pitchsense
+  SPACE_URL: https://shireenaqeel-pitchsense.hf.space
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Check for the token
@@ -31,6 +40,8 @@ jobs:
       - if: steps.token.outputs.present == 'true'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          # The commit the tests passed on, not whatever master is now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - name: Assemble the Space
         if: steps.token.outputs.present == 'true'
@@ -43,17 +54,16 @@ jobs:
         if: steps.token.outputs.present == 'true'
         with:
           python-version: "3.13"
-      - name: Upload
+      - name: Upload and wait for the Space to start
         if: steps.token.outputs.present == 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           pip install "huggingface_hub==2.3.0"
-          python - <<'PY'
-          import os
-          from huggingface_hub import HfApi
-          HfApi(token=os.environ["HF_TOKEN"]).upload_folder(
-              repo_id=os.environ["SPACE"], repo_type="space", folder_path="space",
-              commit_message=f"Deploy {os.environ['GITHUB_SHA'][:7]}", delete_patterns=["*"],
-          )
-          PY
+          python deploy/huggingface/publish.py
+      - name: Check the app answers
+        if: steps.token.outputs.present == 'true'
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 10 --retry-all-errors "$SPACE_URL/_stcore/health"
