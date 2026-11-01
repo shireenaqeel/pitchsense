@@ -4,9 +4,12 @@ import type { Meta, Moment, Puzzle, Shot, World } from "../data/types";
 import { G } from "../state";
 import { loadIcons } from "../ui/icons";
 import { body, C, crisp, H, title, W } from "../ui/theme";
+import { Button } from "../ui/widgets";
 
 /** Loads the exported data with a progress bar and bakes the tiny textures. */
 export class BootScene extends Phaser.Scene {
+  private failed = false;
+
   constructor() {
     super("Boot");
   }
@@ -14,7 +17,7 @@ export class BootScene extends Phaser.Scene {
   preload(): void {
     crisp(this);
     this.add.text(W / 2, H / 2 - 60, "PITCHSENSE", title(56, C.accent)).setOrigin(0.5);
-    const label = this.add.text(W / 2, H / 2 + 40, "Loading 7,500 real shots…", body(16, C.muted)).setOrigin(0.5);
+    this.add.text(W / 2, H / 2 + 40, "Loading 7,500 real shots…", body(16, C.muted)).setOrigin(0.5);
     const g = this.add.graphics();
     this.load.on("progress", (v: number) => {
       g.clear();
@@ -22,8 +25,9 @@ export class BootScene extends Phaser.Scene {
       g.fillStyle(C.accent, 1).fillRoundedRect(W / 2 - 200, H / 2, Math.max(14, 400 * v), 14, 7);
     });
     // The moments are optional: without them only What Happens Next? is unavailable.
-    this.load.on("loaderror", (file: Phaser.Loader.File) => file.key !== "moments" &&
-      label.setText("Could not load the game data. Run `python -m pitchsense.export_game`."));
+    this.load.on("loaderror", (file: Phaser.Loader.File) => {
+      if (file.key !== "moments") this.failed = true;
+    });
 
     this.load.json("shots", "data/shots.json");
     this.load.json("career", "data/career.json");
@@ -43,7 +47,10 @@ export class BootScene extends Phaser.Scene {
     g.destroy();
 
     const shots = this.cache.json.get("shots") as Shot[] | undefined;
-    if (!shots) return;
+    if (this.failed || !shots) {
+      this.loadFailed();
+      return;
+    }
     G.setData(shots, this.cache.json.get("career") as World[], this.cache.json.get("puzzles") as Puzzle[],
       this.cache.json.get("meta") as Meta, (this.cache.json.get("moments") as Moment[] | undefined) ?? []);
     G.load();
@@ -51,5 +58,15 @@ export class BootScene extends Phaser.Scene {
     this.scene.launch("Overlay");
     const fonts = document.fonts ? Promise.all([document.fonts.load("40px Bungee"), document.fonts.load("800 16px Inter")]) : Promise.resolve();
     void fonts.catch(() => undefined).then(() => this.scene.start("Menu"));
+  }
+
+  /** The data didn't arrive (a dropped connection, usually): say so and offer a retry. */
+  private loadFailed(): void {
+    this.children.removeAll(true);
+    this.add.text(W / 2, H / 2 - 110, "KICK-OFF DELAYED", title(48, C.gold)).setOrigin(0.5);
+    this.add.text(W / 2, H / 2 - 30, "The match data didn't load. Check your connection, then try again.",
+      body(18, C.muted, "400")).setOrigin(0.5);
+    new Button(this, W / 2, H / 2 + 60, { w: 280, h: 58, label: "Try again", size: 18, display: true, color: C.accent },
+      () => location.reload());
   }
 }

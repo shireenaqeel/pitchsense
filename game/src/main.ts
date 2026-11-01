@@ -23,6 +23,19 @@ import { StrikerScene } from "./scenes/StrikerScene";
 import { TrophyScene } from "./scenes/TrophyScene";
 import { C, H, RES, W } from "./ui/theme";
 
+// An error from the game's own code leaves Phaser frozen, so swap in a page
+// that says so and offers a reload. Errors from browser extensions and other
+// origins are ignored.
+function crashed(): void {
+  const panel = document.getElementById("crash");
+  if (!panel || !panel.hidden) return;
+  panel.hidden = false;
+  document.getElementById("reload")?.addEventListener("click", () => location.reload());
+}
+window.addEventListener("error", (e) => {
+  if (e.filename && new URL(e.filename, location.href).origin === location.origin) crashed();
+});
+
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: "game",

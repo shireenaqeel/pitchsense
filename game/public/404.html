@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Served for any missing page. It stands alone (inline styles, one hashed
+         script, no assets), so it works at any depth of a broken link. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'sha256-L37BAZtzKbGYQfE262sNOa7XwBCOqteCAcuvo2Y42Y4='; base-uri 'none'; form-action 'none'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%2334d399'/%3E%3C/svg%3E" />
+    <title>Offside · PitchSense</title>
+    <style>
+      :root { --bg: #0b1410; --panel: #13221a; --edge: #2b4a38; --text: #f1f7f2; --muted: #9db5a6; --accent: #34d399; --gold: #facc15; --red: #ef4444; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+      body {
+        min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background:
+          repeating-linear-gradient(90deg, rgba(52, 211, 153, 0.05) 0 80px, transparent 80px 160px),
+          var(--bg);
+      }
+      main { width: 100%; max-width: 560px; text-align: center; }
+      svg { width: 132px; height: auto; margin-bottom: 8px; }
+      .code { font: 900 15px/1 Inter, system-ui, sans-serif; letter-spacing: 0.3em; text-indent: 0.3em; color: var(--muted); margin: 0 0 10px; }
+      h1 { font: 900 clamp(44px, 12vw, 76px)/1 Impact, "Arial Black", system-ui, sans-serif; letter-spacing: 0.02em; color: var(--gold); margin: 0 0 18px; text-transform: uppercase; }
+      p { font-size: 17px; line-height: 1.6; color: var(--muted); margin: 0 auto 28px; max-width: 440px; }
+      .ref { display: inline-block; background: var(--panel); border: 2px solid var(--edge); border-radius: 12px; padding: 12px 16px; margin-bottom: 30px; font-size: 15px; color: var(--text); }
+      .ref b { color: var(--accent); }
+      a.btn { display: inline-block; text-decoration: none; font-weight: 800; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; color: #052e1c; background: var(--accent); border-radius: 12px; padding: 16px 28px; box-shadow: 0 5px 0 rgba(0, 0, 0, 0.35); }
+      a.btn:hover, a.btn:focus-visible { filter: brightness(1.1); outline: 3px solid var(--text); outline-offset: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <!-- An assistant referee with the flag up. -->
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <circle cx="60" cy="60" r="56" fill="#13221a" stroke="#2b4a38" stroke-width="3" />
+        <rect x="56" y="30" width="5" height="66" rx="2.5" fill="#f1f7f2" />
+        <path d="M61 31 h34 v24 h-34 z" fill="#facc15" />
+        <path d="M61 31 h17 v12 h-17 z M78 43 h17 v12 h-17 z" fill="#ef4444" />
+      </svg>
+      <p class="code">ERROR 404</p>
+      <h1>Offside!</h1>
+      <div class="ref">The flag's up: <b>this page isn't on the pitch.</b></div>
+      <p>The link may be old or mistyped. The game itself is fine, so head back to kick-off.</p>
+      <a class="btn" id="home" href="/pitchsense/">Back to kick-off</a>
+    </main>
+    <script>document.getElementById("home").href = location.pathname.indexOf("/pitchsense/") === 0 ? "/pitchsense/" : "/";</script>
+  </body>
+</html>

@@ -502,7 +502,10 @@ Streamlit sidebar links to the published game.
 built page carries a Content-Security-Policy (added at build time in
 `vite.config.ts`, since GitHub Pages can't send headers) that allows only
 same-origin code, and connections only to the leaderboard's Supabase project;
-the fonts ship with the game, so a visit makes no other third-party requests. In the workflow only the deploy job can publish, and every action is
+the fonts ship with the game, so a visit makes no other third-party requests. A
+missing page gets a standalone, football-themed 404 (`game/public/404.html`),
+a failed data load shows a retry screen, and a crash in the game's own code
+swaps the frozen canvas for a reload prompt (`main.ts`). In the workflow only the deploy job can publish, and every action is
 pinned to a commit. The Streamlit leaderboard cleans names and is rate limited
 in the app and in the database, so a public deployment can't be flooded (see
 [Leaderboard](#leaderboard)).

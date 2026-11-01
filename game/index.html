@@ -10,12 +10,31 @@
       #game { width: 100vw; height: 100vh; }
       /* Preload both families so Phaser text has them on first draw. */
       .font-warm { position: absolute; left: -9999px; }
+      /* Shown instead of the game when it can't run (see main.ts). */
+      .fail { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px 16px; background: #0b1410;
+        color: #f1f7f2; font: 17px/1.6 Inter, system-ui, sans-serif; text-align: center; z-index: 20; }
+      .fail[hidden] { display: none; }
+      .fail div { max-width: 480px; }
+      .fail h1 { font: 900 clamp(34px, 9vw, 52px)/1.1 Bungee, Impact, system-ui, sans-serif; color: #facc15; margin: 0 0 16px; }
+      .fail p { color: #9db5a6; margin: 0 0 26px; }
+      .fail button { font: 800 17px Inter, system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.04em; color: #052e1c;
+        background: #34d399; border: 0; border-radius: 12px; padding: 16px 28px; cursor: pointer; box-shadow: 0 5px 0 rgba(0, 0, 0, 0.35); }
     </style>
   </head>
   <body>
     <span class="font-warm" style="font-family: Bungee">.</span>
     <span class="font-warm" style="font-family: Inter; font-weight: 800">.</span>
     <div id="game"></div>
+    <noscript>
+      <div class="fail"><div><h1>Kick-off delayed</h1><p>PitchSense runs in your browser, so it needs JavaScript. Turn it on and reload the page.</p></div></div>
+    </noscript>
+    <div class="fail" id="crash" role="alert" hidden>
+      <div>
+        <h1>Stoppage time</h1>
+        <p>Something went wrong and the game stopped. Your progress is saved in this browser, so reloading picks up where you left off.</p>
+        <button type="button" id="reload">Reload the game</button>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
