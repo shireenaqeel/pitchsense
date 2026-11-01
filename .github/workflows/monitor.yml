@@ -1,12 +1,13 @@
-# Every six hours, check that the game, the app and the leaderboard database
-# answer. A failed check fails the run, and GitHub emails the repo owner.
+# Every six hours, check that the game (on GitHub Pages and Hugging Face), the
+# Streamlit app and the leaderboard database answer. A failed check fails the
+# run, and GitHub emails the repo owner.
 #
-# The checks also keep the free tiers awake: a Hugging Face Space sleeps after
-# 48 hours without visitors, and a Supabase project pauses after a week without
-# requests.
+# The Supabase check also keeps its free project from pausing after a week
+# without requests. A sleeping Streamlit Community Cloud app still answers (with
+# its wake-up page), so that check only proves the app's address is up.
 #
-# Only the Supabase check uses secrets, from the master-only "production"
-# environment; the Hugging Face token is never needed here.
+# The app's address is the APP_URL repository variable (not a secret). Only the
+# Supabase check uses secrets, from the master-only "production" environment.
 name: Monitor
 
 on:
@@ -19,7 +20,8 @@ permissions:
 
 env:
   GAME_URL: https://shireenaqeel.github.io/pitchsense/
-  SPACE_URL: https://shireenaqeel-pitchsense.hf.space
+  SPACE_URL: https://shireenaqeel-pitchsense.static.hf.space
+  APP_URL: ${{ vars.APP_URL }}
 
 jobs:
   check:
@@ -28,13 +30,16 @@ jobs:
     steps:
       - name: Game (GitHub Pages)
         run: curl --fail --silent --show-error --output /dev/null --retry 3 --retry-delay 10 "$GAME_URL"
-      - name: App (Hugging Face Space)
+      - name: Game (Hugging Face Space)
         run: |
           if [ "$(curl --silent --output /dev/null --write-out '%{http_code}' "$SPACE_URL")" = 404 ]; then
             echo "No Space deployed yet"; exit 0
           fi
-          # A sleeping Space takes a minute or two to wake, so keep trying.
-          curl --fail --silent --show-error --retry 10 --retry-delay 30 --retry-all-errors "$SPACE_URL/_stcore/health"
+          curl --fail --silent --show-error --output /dev/null --retry 3 --retry-delay 10 "$SPACE_URL"
+      - name: App (Streamlit Community Cloud)
+        run: |
+          if [ -z "$APP_URL" ]; then echo "APP_URL is not set yet"; exit 0; fi
+          curl --fail --silent --show-error --location --output /dev/null --retry 3 --retry-delay 10 "$APP_URL"
       - name: Leaderboard (Supabase)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

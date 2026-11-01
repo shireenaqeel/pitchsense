@@ -1,5 +1,7 @@
 # The Python tests, including a smoke test that renders every tab of the app.
-# The Hugging Face deploy waits for this to pass on master.
+# When they pass on master, the streamlit branch is moved to that commit.
+# Streamlit Community Cloud deploys the app from that branch, so a commit that
+# fails the tests never reaches the live app.
 name: Tests
 
 on:
@@ -24,3 +26,18 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - run: pytest -q
+
+  # Runs no third-party code, so it alone may write to the repository.
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: pytest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: streamlit-release
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Move the streamlit branch to this commit
+        run: git push --force origin "$GITHUB_SHA:refs/heads/streamlit"

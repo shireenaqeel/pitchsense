@@ -4,7 +4,7 @@ An interactive tool that teaches football tactics and concepts (xG, pressing, of
 
 Unlike a typical xG dashboard, the whole point here is a real pipeline: **real match data → trained ML models → animated replay → interactive quiz → adaptive personalization.** The predictions come from models trained on data, not from an LLM pretending to be a football expert.
 
-**Play the browser game: [shireenaqeel.github.io/pitchsense](https://shireenaqeel.github.io/pitchsense/)** (see [The game](#the-game)).
+**Play the browser game: [shireenaqeel.github.io/pitchsense](https://shireenaqeel.github.io/pitchsense/)**, also on [Hugging Face](https://huggingface.co/spaces/shireenaqeel/pitchsense) (see [The game](#the-game)).
 For how it's deployed and run, see [How it's built and run](#how-its-built-and-run).
 
 ## Problem
@@ -244,7 +244,7 @@ game/           # the browser game (Phaser 3 + TypeScript + Vite), see "The game
 tests/          # unit tests, plus a smoke test that renders the whole app
 data/           # parquet caches (committed); raw downloads stay local
 models/         # trained models + metrics (committed)
-deploy/huggingface/ # the Space's Dockerfile, card and publish script
+deploy/huggingface/ # the game's Hugging Face Space: card and publish script
 supabase/       # the leaderboard table, its security rules and throttle
 .streamlit/     # the deployed app's settings
 .github/        # CI/CD, monitoring and Dependabot
@@ -623,9 +623,9 @@ the report (coverage, stat correlations, top players) goes to
 flowchart LR
   SB[(StatsBomb open data)] -->|fetch once, offline| P[Data pipeline<br/>src/pitchsense]
   P -->|parquet caches + trained models,<br/>committed| R[(GitHub repo)]
-  R -->|Tests pass| HF[Streamlit app<br/>Hugging Face Space]
-  R -->|export + build| GP[Browser game<br/>GitHub Pages]
-  HF <-->|REST, publishable key| DB[(Leaderboard<br/>Supabase Postgres)]
+  R -->|tests pass| ST[Streamlit app<br/>Community Cloud]
+  R -->|export + build| GP[Browser game<br/>GitHub Pages + Hugging Face]
+  ST <-->|REST, publishable key| DB[(Leaderboard<br/>Supabase Postgres)]
 ```
 
 The heavy work (downloading 300+ matches and training the models) happens once,
@@ -635,16 +635,16 @@ being up. The only state that changes while it runs is the leaderboard.
 
 | Concern | How it's handled |
 |---|---|
-| **Hosting** | The Streamlit app runs as a Docker Space on Hugging Face ([`deploy/huggingface`](deploy/huggingface)). The game is a static site on GitHub Pages. |
+| **Hosting** | The Streamlit app runs on Streamlit Community Cloud. The game is a static site, published both to GitHub Pages and to a static Hugging Face Space ([`deploy/huggingface`](deploy/huggingface)). |
 | **Caching** | Every data and model loader is cached with `st.cache_data` / `st.cache_resource`, so each loads once per process. GitHub Pages serves the game through its CDN. |
 | **Database** | The leaderboard is a Postgres table on Supabase, guarded by row-level security, check constraints and an insert throttle ([details](#leaderboard)). |
-| **Security** | No secrets in the code: the Hugging Face token and Supabase key live in a GitHub environment that only `master` can use, the deploy runs only for pushes to this repository (never for pull requests or forks), and the Supabase key is copied to the Space's own secrets. Secret scanning and push protection block a key from being committed. The container runs as a non-root user. Visitors never see tracebacks. Dependencies are pinned and audited, and the game ships a strict Content Security Policy. |
+| **Security** | No secrets in the code: the Hugging Face token and Supabase settings live in a GitHub environment that only `master` can use, and the jobs that use them never run for pull requests or forks. The app reads its Supabase settings from Streamlit Cloud's private secrets. Secret scanning and push protection block a key from being committed. Visitors never see tracebacks. Dependencies are pinned and audited, and the game ships a strict Content Security Policy. |
 | **Rate limiting** | Saving a score is the only write: one per game, 10 a minute in the app, 30 a minute in the database. |
-| **CI/CD** | The [Tests](.github/workflows/tests.yml) workflow runs pytest, including a smoke test that renders every tab, on each push and pull request. On `master`, a pass triggers the [Hugging Face](.github/workflows/huggingface.yml) deploy, which waits for the Space to build and start. The [Game](.github/workflows/game.yml) workflow tests, builds and publishes the game. |
-| **Logging and errors** | The app logs to stdout (start-up, leaderboard saves and failures), alongside Streamlit's own log of any uncaught exception with its traceback. The Space's Logs tab shows both. |
-| **Monitoring and alerts** | The [Monitor](.github/workflows/monitor.yml) workflow checks the game, the app and the database every six hours. Any failed check or deploy fails its run, and GitHub emails the owner. |
-| **Dependencies** | Dependabot opens weekly update pull requests for pip, npm, Actions and the Docker base image. Each one runs the tests. |
-| **Scaling** | The game is static and scales with the CDN. The app is one Python process (2 vCPU, 16 GB on the free tier, about 550 MB used), comfortable for a few dozen people at once. |
+| **CI/CD** | The [Tests](.github/workflows/tests.yml) workflow runs pytest, including a smoke test that renders every tab, on each push and pull request. On `master`, a pass moves the `streamlit` branch to that commit, and Streamlit Cloud deploys the app from that branch, so a failing commit never goes live. The [Game](.github/workflows/game.yml) workflow tests and builds the game, then publishes it to GitHub Pages and to the Hugging Face Space, waiting for the Space to come up. |
+| **Logging and errors** | The app logs to stdout (start-up, leaderboard saves and failures), alongside Streamlit's own log of any uncaught exception with its traceback. Streamlit Cloud's "Manage app" log panel shows both. |
+| **Monitoring and alerts** | The [Monitor](.github/workflows/monitor.yml) workflow checks the game on both hosts, the app and the database every six hours. Any failed check or deploy fails its run, and GitHub emails the owner. |
+| **Dependencies** | Dependabot opens weekly update pull requests for pip, npm and Actions. Each one runs the tests. |
+| **Scaling** | The game is static and scales with the CDN. The app is one Python process using about 550 MB, comfortable for a few dozen people at once on the free tier. |
 
 ## Setup
 

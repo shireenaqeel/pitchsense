@@ -15,6 +15,7 @@ has not been built yet.
 
 import json
 import logging
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -555,8 +556,17 @@ def finish_lesson(lesson, key: str):
 # --------------------------------------------------------------------------- #
 @st.cache_resource
 def leaderboard_store():
-    """Supabase on the deployed app, a local JSON file otherwise."""
-    store = get_store()
+    """Supabase on the deployed app, a local JSON file otherwise.
+
+    The settings come from the environment, or from Streamlit's secrets, which
+    is where Streamlit Community Cloud keeps them.
+    """
+    env = dict(os.environ)
+    try:
+        env.update({k: str(st.secrets[k]) for k in ("SUPABASE_URL", "SUPABASE_KEY") if k in st.secrets})
+    except FileNotFoundError:  # no secrets file: a local run
+        pass
+    store = get_store(env)
     log.info("Leaderboard store: %s", store.name)
     return store
 

@@ -3,18 +3,20 @@ title: PitchSense
 emoji: ⚽
 colorFrom: green
 colorTo: blue
-sdk: docker
-app_port: 7860
+sdk: static
+app_file: index.html
 pinned: false
-short_description: Learn to read a football chance from real match data
+short_description: A football game that teaches you to read a chance
 ---
 
-# PitchSense
+# PitchSense: Scout Career
 
-Learn to read a chance like a scout, using real World Cup, Euro, Copa América
-and AFCON shots and an xG model trained on them.
+A browser game that teaches football from zero and trains your eye for a
+goalscoring chance, using real World Cup and Euro shots and an xG model trained
+on them. Learn the rules in the Academy, read real moves in "What happens
+next?", and take on The Model in boss fights.
 
 - Source and full write-up: https://github.com/shireenaqeel/pitchsense
-- The browser game: https://shireenaqeel.github.io/pitchsense/
+- Also on GitHub Pages: https://shireenaqeel.github.io/pitchsense/
 
-This Space is deployed automatically from the GitHub repository.
+This Space is published automatically from the GitHub repository.
