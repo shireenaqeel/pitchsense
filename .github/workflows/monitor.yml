@@ -41,12 +41,14 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then echo "No Supabase settings yet"; exit 0; fi
+          # Only the origin: the saved URL may be the REST address (.../rest/v1/).
+          base=$(printf '%s' "$SUPABASE_URL" | sed -E 's#^[[:space:]]*(https?://[^/[:space:]]+).*#\1#')
           auth=()
           case "$SUPABASE_KEY" in sb_*) ;; *) auth=(-H "Authorization: Bearer $SUPABASE_KEY") ;; esac
           # On failure, print Supabase's own error message (it never echoes the key).
           for attempt in 1 2 3; do
             body=$(curl --silent --show-error --write-out '\n%{http_code}' \
-              -H "apikey: $SUPABASE_KEY" "${auth[@]}" "${SUPABASE_URL%/}/rest/v1/leaderboard?select=id&limit=1") || body=$'\n000'
+              -H "apikey: $SUPABASE_KEY" "${auth[@]}" "$base/rest/v1/leaderboard?select=id&limit=1") || body=$'\n000'
             code=${body##*$'\n'}
             [ "$code" = 200 ] && exit 0
             sleep 10

@@ -173,6 +173,12 @@ def test_supabase_store_reads_ranked_rows_and_inserts_only_known_fields():
     assert post_headers["Prefer"] == "return=minimal"
 
 
+@pytest.mark.parametrize("url", ["https://abc.supabase.co", "https://abc.supabase.co/",
+                                 "https://abc.supabase.co/rest/v1/", " https://abc.supabase.co/rest/v1 "])
+def test_supabase_store_accepts_the_project_url_in_any_form(url):
+    assert SupabaseStore(url, "k", session=FakeSession()).endpoint == "https://abc.supabase.co/rest/v1/leaderboard"
+
+
 def test_supabase_store_sends_a_legacy_key_as_a_bearer_token_too():
     store = SupabaseStore("https://abc.supabase.co", "eyJhbGciOi.legacy.jwt", session=FakeSession())
     assert store.headers["Authorization"] == "Bearer eyJhbGciOi.legacy.jwt"

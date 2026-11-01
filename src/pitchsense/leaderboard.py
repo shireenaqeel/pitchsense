@@ -29,6 +29,7 @@ import unicodedata
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import requests
 
@@ -178,7 +179,10 @@ class SupabaseStore:
     TIMEOUT = 5
 
     def __init__(self, url: str, key: str, session=None):
-        self.endpoint = url.rstrip("/") + "/rest/v1/leaderboard"
+        # Supabase shows the project URL both bare and as its REST address
+        # (".../rest/v1/"); either works, as only the origin is kept.
+        parts = urlsplit(url.strip())
+        self.endpoint = f"{parts.scheme}://{parts.netloc}/rest/v1/leaderboard"
         self.headers = {"apikey": key}
         if not key.startswith("sb_"):  # a legacy anon key is a JWT, sent as a bearer token too
             self.headers["Authorization"] = f"Bearer {key}"
