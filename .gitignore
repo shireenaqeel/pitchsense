@@ -26,6 +26,10 @@ env/
 data/*
 !data/*.parquet
 data/leaderboard.json
+# Training also saves every candidate model; only the served copies
+# (*_baseline.joblib) are loaded, so the candidates stay local.
+models/*_logreg.joblib
+models/*_xgboost.joblib
 
 # Editor / OS
 .vscode/
