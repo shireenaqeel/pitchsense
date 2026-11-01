@@ -1,6 +1,5 @@
 """Tests for the 'be the striker' scenario builder."""
 
-import math
 
 import pytest
 

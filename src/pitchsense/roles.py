@@ -16,7 +16,6 @@ import json
 from pathlib import Path
 
 import joblib
-import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -216,12 +215,6 @@ def render_role_map(result=None, save_path: Path | None = None) -> Path:
 
 def load_roles():
     return joblib.load(MODEL_PATH)
-
-
-def predict_role(bundle, features: dict) -> str:
-    row = pd.DataFrame([[features[f] for f in bundle["features"]]], columns=bundle["features"])
-    cluster = int(bundle["model"].predict(row)[0])
-    return bundle["labels"][cluster]
 
 
 def assign_roles(bundle, data: pd.DataFrame) -> pd.Series:

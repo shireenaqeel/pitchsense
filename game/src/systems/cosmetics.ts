@@ -49,8 +49,6 @@ export const BALLS: BallSkin[] = [
   { id: "ball.gold", kind: "ball", name: "Golden Ball", price: 1200, fill: 0xfacc15, trim: 0x92400e, trail: 0xfde047 },
 ];
 
-export const ITEMS: Item[] = [...PITCHES, ...BALLS];
-
 export function pitchTheme(save: SaveData): PitchTheme {
   return PITCHES.find((p) => p.id === save.equipped.pitch) ?? PITCHES[0];
 }

@@ -17,7 +17,7 @@ machinery in ``train.py``.
 
 import json
 
-from sklearn.model_selection import train_test_split
+import pandas as pd
 
 from pitchsense.data import load_shots
 from pitchsense.features import (
@@ -50,7 +50,7 @@ PRIMARY_MODEL_PATH = MODEL_DIR / "psxg_baseline.joblib"
 METRICS_PATH = MODEL_DIR / "psxg_metrics.json"
 
 
-def build_postshot_frame(shots) -> "pd.DataFrame":
+def build_postshot_frame(shots) -> pd.DataFrame:
     """On-target shots with the pre-shot features plus the placement features."""
     df = build_feature_frame(shots)
     df = df[df["shot_outcome"].isin(ON_TARGET_OUTCOMES)].copy()

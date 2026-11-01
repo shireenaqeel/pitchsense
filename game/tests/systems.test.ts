@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { bandBalance, conceptWeights, pickAdaptive, updateProgress } from "../src/systems/adaptive";
 import { ACHIEVEMENTS, ACHIEVEMENT_COINS, unlockNew } from "../src/systems/achievements";
 import { bossHp, isUnlocked, matchStars, puzzleStars } from "../src/systems/career";
-import { ITEMS, buy, equip } from "../src/systems/cosmetics";
+import { buy, equip, PITCHES } from "../src/systems/cosmetics";
 import { levelFromXp, rankFor, xpToNext } from "../src/systems/progression";
 import { recordDaily, recordMatch, recordRead } from "../src/systems/record";
 import { dailyNumber, dailyPicks, isNextDay, mulberry32 } from "../src/systems/rng";
@@ -181,7 +181,7 @@ describe("recording and achievements", () => {
 
   it("buys and equips only what you can afford", () => {
     const save = defaultSave();
-    const night = ITEMS.find((i) => i.id === "pitch.night")!;
+    const night = PITCHES.find((i) => i.id === "pitch.night")!;
     expect(buy(save, night)).toBe("poor");
     expect(equip(save, night)).toBe(false);
     save.coins = 1000;

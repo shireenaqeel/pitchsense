@@ -30,11 +30,11 @@ log = logging.getLogger("pitchsense.app")
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import streamlit as st
 from matplotlib import colormaps
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
-import pandas as pd
-import streamlit as st
 
 from pitchsense.concepts import (
     concept_scores,
@@ -51,7 +51,15 @@ from pitchsense.features import (
     placement_from_center,
     placement_height,
 )
-from pitchsense.leaderboard import MIN_ROUNDS, LeaderboardError, board, get_store, make_entry, save, top
+from pitchsense.leaderboard import (
+    MIN_ROUNDS,
+    LeaderboardError,
+    board,
+    get_store,
+    make_entry,
+    save,
+    top,
+)
 from pitchsense.lessons import (
     LESSONS,
     LESSONS_BY_ID,
@@ -60,11 +68,18 @@ from pitchsense.lessons import (
     concept_goal_rate,
     practice_pool,
 )
-from pitchsense.matches import load_matches, load_name_map, match_subtitle, shot_headline
+from pitchsense.matches import (
+    load_matches,
+    load_name_map,
+    match_subtitle,
+    shot_headline,
+)
 from pitchsense.pitch import draw_pitch
 from pitchsense.postshot import (
     ON_TARGET_OUTCOMES,
     POSTSHOT_FEATURES,
+)
+from pitchsense.postshot import (
     PRIMARY_MODEL_PATH as PSXG_MODEL_PATH,
 )
 from pitchsense.quiz import (
@@ -80,17 +95,24 @@ from pitchsense.quiz import (
     outcome_text,
     reaction,
 )
+from pitchsense.ratings import (
+    METRICS_PATH as RATINGS_METRICS_PATH,
+)
+from pitchsense.ratings import (
+    RATINGS_CACHE,
+    load_ratings,
+)
 from pitchsense.roles import (
     METRICS_PATH as ROLES_METRICS_PATH,
+)
+from pitchsense.roles import (
     MODEL_PATH as ROLES_MODEL_PATH,
+)
+from pitchsense.roles import (
     PLAYERS_CACHE,
     ROLE_MAP_PATH,
     assign_roles,
     load_roles,
-)
-from pitchsense.ratings import (
-    METRICS_PATH as RATINGS_METRICS_PATH,
-    RATINGS_CACHE,
 )
 from pitchsense.sandbox import (
     ASSIST_TYPES,
@@ -103,7 +125,11 @@ from pitchsense.sandbox import (
 )
 from pitchsense.tactics import (
     METRICS_PATH as TACTICS_METRICS_PATH,
+)
+from pitchsense.tactics import (
     MODEL_PATH as TACTICS_MODEL_PATH,
+)
+from pitchsense.tactics import (
     load_classifier,
     overall_means,
     predict_pattern,
@@ -185,7 +211,7 @@ def load_players_frame():
 
 @st.cache_data(show_spinner=False)
 def load_ratings_frame():
-    return pd.read_parquet(RATINGS_CACHE).set_index("player")
+    return load_ratings().set_index("player")
 
 
 def _pct_text(value) -> str:
@@ -224,10 +250,6 @@ def render_player_ratings(player: str):
                      f"{int(r['n_np_shots'])} shots (p{_pct_text(r['finishing_pct'])})")
     parts.append(f"fouls {r['fouls_per100']:.2f}/100 · cards {int(r['card_points'])} pts")
     st.caption(" · ".join(parts) + f" — percentiles vs. {r['role']}s")
-
-
-def model_xg(model, shot) -> float:
-    return float(model.predict_proba(shot[FEATURE_COLUMNS].to_frame().T)[:, 1][0])
 
 
 def model_psxg(psxg_model, shot) -> float:

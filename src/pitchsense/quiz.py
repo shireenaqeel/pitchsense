@@ -98,11 +98,6 @@ def bucket_label(xg: float) -> str:
     return BUCKET_LABELS[bucket_index(xg)]
 
 
-def bucket_probability(label: str) -> float:
-    """The representative scoring probability for a named band."""
-    return CHANCE_BUCKETS[BUCKET_LABELS.index(label)][3]
-
-
 def bucket_points(guess_label: str, model_xg: float) -> int:
     """Beginner points: did you read the chance the way the model did?
 

@@ -14,7 +14,7 @@ can be unit tested without any network access.
 
 import numpy as np
 
-from pitchsense.sequences import BALL_ACTIONS, build_waypoints, possession_events
+from pitchsense.sequences import build_waypoints, possession_events
 
 # A possession needs at least this many on-ball actions to be a meaningful
 # sequence; shorter chains (a clearance, a single hopeful pass) carry no pattern.

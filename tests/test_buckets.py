@@ -1,15 +1,14 @@
 """Tests for Beginner-mode chance bands and their scoring."""
 
-import numpy as np
 import pytest
 
 from pitchsense.quiz import (
     BUCKET_LABELS,
+    CHANCE_BUCKETS,
     bucket_balance,
     bucket_index,
     bucket_label,
     bucket_points,
-    bucket_probability,
     gap_points,
     out_of_100,
     outcome_text,
@@ -24,9 +23,10 @@ def test_bucket_label_boundaries(xg, label):
     assert bucket_label(xg) == label
 
 
-def test_bucket_probability_falls_inside_its_band():
-    for label in BUCKET_LABELS:
-        assert bucket_label(bucket_probability(label)) == label
+def test_each_band_scores_with_a_probability_inside_the_band():
+    # A Beginner answer is scored with its band's representative probability.
+    for label, _, _, prob, _ in CHANCE_BUCKETS:
+        assert bucket_label(prob) == label
 
 
 def test_bucket_points_reward_matching_the_model():

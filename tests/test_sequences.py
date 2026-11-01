@@ -1,6 +1,5 @@
 """Tests for building and interpolating a ball track from events."""
 
-import numpy as np
 import pandas as pd
 
 from pitchsense.sequences import (

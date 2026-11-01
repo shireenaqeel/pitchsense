@@ -195,7 +195,7 @@ def match_moments(events: list, frames: list, match_id: int) -> list:
     by_id = {f["event_uuid"]: f for f in frames}
     on_ball = ("Pass", "Carry", "Shot", "Dribble")
     moments = []
-    for i, e in enumerate(events):
+    for e in events:
         call = decision(e)
         loc = e.get("location")
         frame = by_id.get(e.get("id"))

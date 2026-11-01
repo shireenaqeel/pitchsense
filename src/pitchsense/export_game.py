@@ -38,6 +38,8 @@ from pitchsense.moments import CHOICES, MOMENTS_CACHE, load_moments
 from pitchsense.postshot import (
     ON_TARGET_OUTCOMES,
     POSTSHOT_FEATURES,
+)
+from pitchsense.postshot import (
     PRIMARY_MODEL_PATH as PSXG_MODEL_PATH,
 )
 from pitchsense.quiz import CHANCE_BUCKETS, bucket_index

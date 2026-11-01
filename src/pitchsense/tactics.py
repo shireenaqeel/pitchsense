@@ -154,12 +154,6 @@ def predict_pattern(bundle, features: dict) -> str:
     return bundle["labels"][cluster]
 
 
-def label_possessions(bundle, data: pd.DataFrame) -> pd.Series:
-    """Pattern label for every row of a possession feature frame."""
-    clusters = bundle["model"].predict(data[POSSESSION_FEATURES])
-    return pd.Series([bundle["labels"][int(c)] for c in clusters], index=data.index)
-
-
 def overall_means() -> dict:
     """Size-weighted mean of each feature across clusters, from the saved metrics.
 

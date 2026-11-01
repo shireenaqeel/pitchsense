@@ -28,7 +28,6 @@ from pitchsense.features import FEATURE_COLUMNS, TARGET_COLUMN, build_feature_fr
 from pitchsense.train import (
     CV_FOLDS,
     MODEL_DIR,
-    METRICS_PATH as XG_METRICS_PATH,
     XGB_SEARCH_ITER,
     _run_search,
     _score,
@@ -36,6 +35,9 @@ from pitchsense.train import (
     international_folds,
     load_club_frame,
     with_extra,
+)
+from pitchsense.train import (
+    METRICS_PATH as XG_METRICS_PATH,
 )
 
 # Human-readable label per configured (competition_id, season_id).

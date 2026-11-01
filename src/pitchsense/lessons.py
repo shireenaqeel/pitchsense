@@ -12,7 +12,7 @@ Pure data plus small helpers, with no UI, so it can be unit tested.
 from dataclasses import dataclass, replace
 
 from pitchsense.concepts import ALL_CONCEPTS
-from pitchsense.sandbox import PRESETS, Scenario
+from pitchsense.sandbox import PRESETS
 
 PRACTICE_ROUNDS = 3
 

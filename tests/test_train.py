@@ -31,7 +31,7 @@ def test_summarise_cv_covers_every_scorer():
 def test_build_searches_defines_both_models():
     searches = build_searches()
     assert set(searches) == {"logistic_regression", "xgboost"}
-    for estimator, space, kind in searches.values():
+    for _estimator, space, kind in searches.values():
         assert kind in ("grid", "random")
         assert isinstance(space, dict) and space
     # the linear model tunes regularisation; the tree tunes depth
@@ -40,7 +40,6 @@ def test_build_searches_defines_both_models():
 
 
 def test_international_folds_validate_only_on_international_rows():
-    import numpy as np
     import pandas as pd
 
     from pitchsense.train import international_folds
