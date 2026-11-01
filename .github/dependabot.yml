@@ -1,5 +1,7 @@
-# Weekly pull requests for dependency updates, security fixes included. Each
-# one runs the tests before it can be merged.
+# Weekly pull requests for minor and patch updates, each of which runs the
+# tests. Major versions (a new Phaser, Vite or TypeScript, a new action major)
+# change behaviour, so they are upgraded by hand rather than proposed weekly.
+# Security fixes come separately, as Dependabot security updates.
 version: 2
 updates:
   - package-ecosystem: pip
@@ -9,6 +11,9 @@ updates:
     groups:
       python:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /game
     schedule:
@@ -16,7 +21,16 @@ updates:
     groups:
       game:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
