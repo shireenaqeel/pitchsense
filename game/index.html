@@ -10,6 +10,14 @@
       #game { width: 100vw; height: 100vh; }
       /* Preload both families so Phaser text has them on first draw. */
       .font-warm { position: absolute; left: -9999px; }
+      /* The game is widescreen: on a phone held upright, suggest turning it.
+         It sits in the empty band above the letterboxed canvas and ignores taps. */
+      .rotate { display: none; }
+      @media (orientation: portrait) and (max-width: 700px) {
+        .rotate { display: flex; position: fixed; left: 16px; right: 16px; top: 18vh; z-index: 5; pointer-events: none;
+          justify-content: center; align-items: center; gap: 10px; color: #9db5a6; font: 600 15px/1.4 Inter, system-ui, sans-serif; text-align: center; }
+        .rotate svg { flex: none; width: 26px; height: 26px; }
+      }
       /* Shown instead of the game when it can't run (see main.ts). */
       .fail { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px 16px; background: #0b1410;
         color: #f1f7f2; font: 17px/1.6 Inter, system-ui, sans-serif; text-align: center; z-index: 20; }
@@ -25,6 +33,12 @@
     <span class="font-warm" style="font-family: Bungee">.</span>
     <span class="font-warm" style="font-family: Inter; font-weight: 800">.</span>
     <div id="game"></div>
+    <div class="rotate" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="7" y="2" width="10" height="20" rx="2" /><path d="M2 12a10 10 0 0 0 4 8" /><path d="M2 20h4v-4" />
+      </svg>
+      <span>Turn your phone sideways for the best view</span>
+    </div>
     <noscript>
       <div class="fail"><div><h1>Kick-off delayed</h1><p>PitchSense runs in your browser, so it needs JavaScript. Turn it on and reload the page.</p></div></div>
     </noscript>
