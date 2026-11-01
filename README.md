@@ -254,13 +254,14 @@ docs/           # rendered example figures
 
 Any shot can be drawn on a pitch with its freeze-frame — the shooter, teammates,
 defenders, and goalkeeper as StatsBomb recorded them at the moment of the shot —
-with the ball's path and the model's xG in the title. This is the visual layer
-the interactive quiz will later pause on.
+with the ball's path and the model's xG in the title. It is the picture the
+quiz pauses on before you call the chance.
 
 ![Example shot](docs/example_shot.png)
 
-The example above is a Luis Suárez goal the model rates at just 0.01 xG: a tight
-chance struck through a crowded box (seven defenders between the ball and goal).
+The example above is a Luis Suárez goal the model rates at just 0.11 xG: a shot
+from about 19 yards through a crowded box (seven defenders between the ball and
+goal).
 Regenerate it with `python -m pitchsense.viz`.
 
 ### Animated replay
@@ -664,7 +665,7 @@ being up. The only state that changes while it runs is the leaderboard.
 
 ## Setup
 
-Requires Python 3.11+.
+Requires Python 3.12+ (numpy and XGBoost need it). CI and the deployed app use 3.13.
 
 ```bash
 python -m venv .venv
@@ -770,20 +771,25 @@ pytest
   zero attempts, back-compat with older caches, finishing as goals above xG per
   shot, small-sample masking, within-role percentiles, and both composite scores.
 - Leaderboard: entry construction (averages, model margin, blank-name and
-  zero-round guards), the save/load round-trip and parent-directory creation,
-  resilience to a missing or corrupt file, and the ranking rules (average first,
-  model margin as tie-break, and the minimum-rounds qualification filter).
+  zero-round guards), name cleaning, the ranking rules (average first, model
+  margin as tie-break, and the minimum-rounds qualification filter), the file
+  store (round-trip, a missing or corrupt file, the size cap, and twenty
+  simultaneous saves losing no row), the rate limiter, and the Supabase store
+  against a fake HTTP session (the query, the fields it sends, both kinds of key,
+  any form of project URL, and outages reported as a message rather than a
+  crash). The tables' own rules are in SQL and were checked against Postgres.
 
-The bulk labellers that the explorer tabs rely on (`label_possessions`,
-`assign_roles`) are unit tested with a stub clusterer, and `overall_means`
-composes the seed possession from the saved metrics.
+The bulk role labeller the player explorer relies on (`assign_roles`) is unit
+tested with a stub clusterer, and `overall_means` composes the seed possession
+from the saved metrics.
 
-The Streamlit flow is checked end-to-end with Streamlit's AppTest harness as a
-manual smoke test — the quiz (guessing, revealing, seeing pre- and post-shot xG,
-next shot, and saving a qualifying score to the leaderboard) and both explorer
-tabs (the tactical-pattern sliders driving a live classification, and the
-player-role lookup). It needs the data caches and trained models present and so is
-run by hand rather than in the pytest suite.
+A smoke test (`tests/test_app.py`) runs the whole Streamlit app with
+Streamlit's AppTest harness, in both Beginner and Expert mode, and fails on any
+exception in any of the six tabs; it also checks that the leaderboard switches
+to Supabase when its secrets are set. It reads the committed caches and models,
+so it runs in CI with the rest of the suite. The game's systems, including the
+leaderboard client, have their own Vitest suite (`game/tests`), run by the Game
+workflow.
 
 Not yet tested end-to-end: the live data fetch (it hits the network) is exercised
 manually via `python -m pitchsense.train`.
@@ -819,8 +825,8 @@ manually via `python -m pitchsense.train`.
 
 ## Roadmap
 
-**All six phases are complete** — the MVP (phases 1–4) and every stretch goal
-(phases 5–6), plus extensions that went beyond the original plan (a post-shot xG
+**All eight phases are complete** — the MVP (phases 1–4), every stretch goal
+(phases 5–6), the browser game and its deployment (phases 7–8), plus extensions that went beyond the original plan (a post-shot xG
 model and cross-tournament generalisation tests).
 
 1. ✅ **Data + xG model** — Logistic Regression vs XGBoost, assist-type and
@@ -841,3 +847,9 @@ model and cross-tournament generalisation tests).
    **leaderboard** (a shared high-score table on Supabase, ranked by average points
    per round with a model-beating tie-break). All three are also surfaced in the
    app's explorer tabs. **All stretch goals shipped.**
+7. ✅ **Browser game** — PitchSense: Scout Career (Phaser 3 + TypeScript): the
+   same shots and models as a career mode with boss fights, a 26-lesson Academy,
+   Read the Match on real 360 data, a daily challenge, and shared leaderboards.
+8. ✅ **Deployment** — the game on GitHub Pages and the app on Streamlit
+   Community Cloud, behind tests in CI, a scheduled health check, and Dependabot
+   (see [How it's built and run](#how-its-built-and-run)).
