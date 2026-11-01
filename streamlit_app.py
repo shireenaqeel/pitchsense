@@ -23,7 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 # Our own log lines go to stdout next to Streamlit's, which logs uncaught app
-# exceptions with their traceback; on Hugging Face both show in the Logs tab.
+# exceptions with their traceback; Streamlit Cloud's log panel shows both.
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("pitchsense.app")
 

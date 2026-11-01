@@ -1,5 +1,5 @@
-# Every six hours, check that the game (on GitHub Pages and Hugging Face), the
-# Streamlit app and the leaderboard database answer. A failed check fails the
+# Every six hours, check that the game, the Streamlit app and the leaderboard
+# database answer. A failed check fails the
 # run, and GitHub emails the repo owner.
 #
 # The Supabase check also keeps its free project from pausing after a week
@@ -20,7 +20,6 @@ permissions:
 
 env:
   GAME_URL: https://shireenaqeel.github.io/pitchsense/
-  SPACE_URL: https://shireenaqeel-pitchsense.static.hf.space
   APP_URL: ${{ vars.APP_URL }}
 
 jobs:
@@ -30,12 +29,6 @@ jobs:
     steps:
       - name: Game (GitHub Pages)
         run: curl --fail --silent --show-error --output /dev/null --retry 3 --retry-delay 10 "$GAME_URL"
-      - name: Game (Hugging Face Space)
-        run: |
-          if [ "$(curl --silent --output /dev/null --write-out '%{http_code}' "$SPACE_URL")" = 404 ]; then
-            echo "No Space deployed yet"; exit 0
-          fi
-          curl --fail --silent --show-error --output /dev/null --retry 3 --retry-delay 10 "$SPACE_URL"
       - name: App (Streamlit Community Cloud)
         run: |
           if [ -z "$APP_URL" ]; then echo "APP_URL is not set yet"; exit 0; fi
