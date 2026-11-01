@@ -43,5 +43,13 @@ jobs:
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then echo "No Supabase settings yet"; exit 0; fi
           auth=()
           case "$SUPABASE_KEY" in sb_*) ;; *) auth=(-H "Authorization: Bearer $SUPABASE_KEY") ;; esac
-          curl --fail --silent --show-error --output /dev/null --retry 3 --retry-delay 10 \
-            -H "apikey: $SUPABASE_KEY" "${auth[@]}" "$SUPABASE_URL/rest/v1/leaderboard?select=id&limit=1"
+          # On failure, print Supabase's own error message (it never echoes the key).
+          for attempt in 1 2 3; do
+            body=$(curl --silent --show-error --write-out '\n%{http_code}' \
+              -H "apikey: $SUPABASE_KEY" "${auth[@]}" "${SUPABASE_URL%/}/rest/v1/leaderboard?select=id&limit=1") || body=$'\n000'
+            code=${body##*$'\n'}
+            [ "$code" = 200 ] && exit 0
+            sleep 10
+          done
+          echo "::error::Supabase answered $code: $(printf '%s' "${body%$'\n'*}" | head -c 300)"
+          exit 1
