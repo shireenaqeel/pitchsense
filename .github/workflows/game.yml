@@ -39,6 +39,13 @@ jobs:
           cache: npm
           cache-dependency-path: game/package-lock.json
       - working-directory: game
+        env:
+          # The leaderboards' Supabase project. These are repository variables,
+          # not secrets: a browser game ships them to every player, and the
+          # table's own rules (supabase/game_scores.sql) are what protect it.
+          # Without them the build shows the boards as offline.
+          VITE_SUPABASE_URL: ${{ vars.GAME_SUPABASE_URL }}
+          VITE_SUPABASE_KEY: ${{ vars.GAME_SUPABASE_KEY }}
         run: |
           npm ci
           npm test

@@ -9,6 +9,7 @@ import Phaser from "phaser";
 import { AcademyScene } from "./scenes/AcademyScene";
 import { BootScene } from "./scenes/BootScene";
 import { CareerScene } from "./scenes/CareerScene";
+import { LeaderboardScene } from "./scenes/LeaderboardScene";
 import { LessonScene } from "./scenes/LessonScene";
 import { MenuScene } from "./scenes/MenuScene";
 import { NextScene } from "./scenes/NextScene";
@@ -32,5 +33,5 @@ new Phaser.Game({
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   render: { antialias: true, roundPixels: false },
   scene: [BootScene, MenuScene, AcademyScene, LessonScene, CareerScene, PlayScene, ResultsScene, StrikerScene,
-    ReadMatchScene, RefScene, NextScene, TrophyScene, ShopScene, OverlayScene],
+    ReadMatchScene, RefScene, NextScene, TrophyScene, ShopScene, LeaderboardScene, OverlayScene],
 });

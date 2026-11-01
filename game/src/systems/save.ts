@@ -49,6 +49,8 @@ export interface SaveData {
   owned: string[];
   equipped: { pitch: string; ball: string };
   settings: { muted: boolean };
+  /** The name last used on the shared leaderboards. */
+  playerName: string;
 }
 
 export function defaultSave(): SaveData {
@@ -81,6 +83,7 @@ export function defaultSave(): SaveData {
     owned: ["pitch.classic", "ball.classic"],
     equipped: { pitch: "pitch.classic", ball: "ball.classic" },
     settings: { muted: false },
+    playerName: "",
   };
 }
 

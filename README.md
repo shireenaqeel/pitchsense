@@ -245,7 +245,7 @@ tests/          # unit tests, plus a smoke test that renders the whole app
 data/           # parquet caches (committed); raw downloads stay local
 models/         # trained models + metrics (committed)
 deploy/huggingface/ # the game's Hugging Face Space: card and publish script
-supabase/       # the leaderboard table, its security rules and throttle
+supabase/       # the leaderboard tables, their security rules and throttles
 .streamlit/     # the deployed app's settings
 .github/        # CI/CD, monitoring and Dependabot
 docs/           # rendered example figures
@@ -388,9 +388,10 @@ same Brier scale against the real outcome.
 
 `game/` turns the same shots and models into a real browser game: PitchSense:
 Scout Career, built with Phaser 3, TypeScript and Vite. The Streamlit app is
-where you learn and explore; the game gives you a reason to come back. It has
-no backend. `python -m pitchsense.export_game` bakes everything the game needs
-into static JSON, so every probability it shows came from a model trained here.
+where you learn and explore; the game gives you a reason to come back. It is a
+static site: `python -m pitchsense.export_game` bakes everything the game needs
+into JSON, so every probability it shows came from a model trained here. The
+only thing it talks to is the shared leaderboard.
 
 ![Career map](docs/game_career.png)
 
@@ -453,6 +454,18 @@ Final) and ball skins. The save lives in `localStorage` and is merged over
 defaults on load, so an old save never breaks a new build. Every sound is
 synthesised with WebAudio, so the game ships no audio files.
 
+**Shared leaderboards.** Today's Daily Challenge (everyone plays the same ten
+shots) and Rapid Fire of all time each have a top-ten board. A day's first
+scored daily, or a new Rapid Fire best, can be posted under a name, which the
+game remembers. Scores go straight from the browser to a Supabase table
+([`supabase/game_scores.sql`](supabase/game_scores.sql)) over its REST API. A
+browser game can't keep a key secret, so it carries the project's publishable
+key, and the table enforces the rules: read and insert only, no edits or
+deletes; each row must be a possible result (a daily is ten shots worth at most
+2,500, dated today); and at most 30 posts a minute across everyone. The client
+code is in `game/src/systems/leaderboard.ts`, unit tested against a fake
+`fetch`. A build without the settings shows the boards as offline.
+
 **Two things the export guards against.**
 - **Puzzle keepers track the ball.** A keeper frozen in place leaves open goals
   the model never saw in training, and it rates them absurdly high. Puzzle
@@ -485,11 +498,11 @@ models, tests and builds the game, and publishes it to GitHub Pages. The
 exported JSON is git-ignored, so the game can never drift from the models. The
 Streamlit sidebar links to the published game.
 
-**Security.** The game is a static site with no backend and no accounts. The
+**Security.** The game is a static site with no accounts. The
 built page carries a Content-Security-Policy (added at build time in
 `vite.config.ts`, since GitHub Pages can't send headers) that allows only
-same-origin code; the fonts ship with the game, so a visit makes no third-party
-requests. In the workflow only the deploy job can publish, and every action is
+same-origin code, and connections only to the leaderboard's Supabase project;
+the fonts ship with the game, so a visit makes no other third-party requests. In the workflow only the deploy job can publish, and every action is
 pinned to a commit. The Streamlit leaderboard cleans names and is rate limited
 in the app and in the database, so a public deployment can't be flooded (see
 [Leaderboard](#leaderboard)).
@@ -625,7 +638,8 @@ flowchart LR
   P -->|parquet caches + trained models,<br/>committed| R[(GitHub repo)]
   R -->|tests pass| ST[Streamlit app<br/>Community Cloud]
   R -->|export + build| GP[Browser game<br/>GitHub Pages + Hugging Face]
-  ST <-->|REST, publishable key| DB[(Leaderboard<br/>Supabase Postgres)]
+  ST <-->|REST, publishable key| DB[(Leaderboards<br/>Supabase Postgres)]
+  GP <-->|REST, publishable key| DB
 ```
 
 The heavy work (downloading 300+ matches and training the models) happens once,
@@ -637,7 +651,7 @@ being up. The only state that changes while it runs is the leaderboard.
 |---|---|
 | **Hosting** | The Streamlit app runs on Streamlit Community Cloud. The game is a static site, published both to GitHub Pages and to a static Hugging Face Space ([`deploy/huggingface`](deploy/huggingface)). |
 | **Caching** | Every data and model loader is cached with `st.cache_data` / `st.cache_resource`, so each loads once per process. GitHub Pages serves the game through its CDN. |
-| **Database** | The leaderboard is a Postgres table on Supabase, guarded by row-level security, check constraints and an insert throttle ([details](#leaderboard)). |
+| **Database** | Two Postgres tables on Supabase: the game's daily and Rapid Fire boards, and the app's quiz board. Each is guarded by row-level security, check constraints and an insert throttle, so the game's public key can't be misused ([game](#the-game), [app](#leaderboard)). |
 | **Security** | No secrets in the code: the Hugging Face token and Supabase settings live in a GitHub environment that only `master` can use, and the jobs that use them never run for pull requests or forks. The app reads its Supabase settings from Streamlit Cloud's private secrets. Secret scanning and push protection block a key from being committed. Visitors never see tracebacks. Dependencies are pinned and audited, and the game ships a strict Content Security Policy. |
 | **Rate limiting** | Saving a score is the only write: one per game, 10 a minute in the app, 30 a minute in the database. |
 | **CI/CD** | The [Tests](.github/workflows/tests.yml) workflow runs pytest, including a smoke test that renders every tab, on each push and pull request. On `master`, a pass moves the `streamlit` branch to that commit, and Streamlit Cloud deploys the app from that branch, so a failing commit never goes live. The [Game](.github/workflows/game.yml) workflow tests and builds the game, then publishes it to GitHub Pages and to the Hugging Face Space, waiting for the Space to come up. |

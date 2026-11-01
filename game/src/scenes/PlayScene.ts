@@ -25,6 +25,8 @@ export type PlayMode =
 const RAPID_MS = 60_000;
 const RAPID_ROUND_MS = 6_000;
 const DAILY_ROUND_MS = 12_000;
+/** Shots in a daily: two from each chance band (see dailyPicks). */
+const DAILY_SHOTS = 10;
 const RAPID_TIME_BONUS: Record<Grade, number> = { exact: 2000, near: 1000, miss: 0, timeout: 0 };
 
 const PANEL_X = 760;
@@ -523,6 +525,7 @@ export class PlayScene extends Phaser.Scene {
       newBest: false,
       trophy: null,
       won: true,
+      post: null,
     };
 
     if (m.kind === "career") {
@@ -544,10 +547,13 @@ export class PlayScene extends Phaser.Scene {
       data.sub = counted ? `Streak: ${G.save.daily.streak} day${G.save.daily.streak === 1 ? "" : "s"}`
         : `Replay — today's scored attempt was ${G.save.daily.scores[key]} pts`;
       data.share = `PitchSense Daily #${dailyNumber(key)}\n${grades.map(gradeSquare).join("")}\n${this.score} pts`;
+      // Only the day's first, scored attempt, with all ten shots, can go on the board.
+      if (counted && this.results.length === DAILY_SHOTS) data.post = { mode: "daily", day: key, score: this.score, reads: this.results.length };
     } else {
       data.newBest = recordRapid(G.save, this.score);
       data.headline = "TIME UP";
       data.sub = data.newBest ? "New personal best!" : `Best: ${G.save.rapidBest}`;
+      if (data.newBest && this.results.length > 0) data.post = { mode: "rapid", day: null, score: this.score, reads: this.results.length };
     }
     settle(this, this.levelBefore);
     data.xp = G.save.xp - this.xpStart;

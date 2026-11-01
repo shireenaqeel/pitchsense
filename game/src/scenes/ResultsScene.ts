@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { sfx } from "../audio/sfx";
 import { G } from "../state";
 import { pitchTheme } from "../systems/cosmetics";
+import type { PendingScore } from "../systems/leaderboard";
 import { levelFromXp, rankFor } from "../systems/progression";
 import type { Grade } from "../systems/scoring";
 import { confetti } from "../ui/common";
@@ -25,6 +26,8 @@ export interface ResultsData {
   newBest: boolean;
   trophy: string | null;
   won: boolean;
+  /** A score the player may post to a shared leaderboard. */
+  post: PendingScore | null;
 }
 
 export class ResultsScene extends Phaser.Scene {
@@ -108,6 +111,13 @@ export class ResultsScene extends Phaser.Scene {
       const colors = { exact: C.exact, near: C.near, miss: C.miss, timeout: C.miss };
       const x0 = W / 2 - (d.grades.length * 22 - 4) / 2;
       d.grades.forEach((gr, i) => g.fillStyle(colors[gr], 1).fillRoundedRect(x0 + i * 22, by + 40, 18, 18, 4));
+    }
+    if (m.kind !== "career") {
+      const board = m.kind === "daily" ? "daily" : "rapid";
+      new Button(this, W / 2, by + (d.share ? 102 : 76), {
+        w: 300, h: 50, label: d.post ? "Post to the leaderboard" : "Leaderboard", icon: "trophy", iconColor: C.gold, size: 17,
+        color: d.post ? C.accent : C.panelHi, display: !!d.post,
+      }, () => goTo(this, "Leaderboard", { board, post: d.post }));
     }
     this.input.keyboard?.once("keydown-ENTER", () => goTo(this, m.kind === "career" ? "Career" : "Menu",
       m.kind === "career" ? { world: m.world } : undefined));

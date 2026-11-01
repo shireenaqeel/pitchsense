@@ -64,6 +64,7 @@ export class MenuScene extends Phaser.Scene {
     new Button(this, 166, 650, { w: 192, h: 50, label: "Trophy Room", icon: "medal", size: 16 }, () => goTo(this, "Trophies"));
     new Button(this, 374, 650, { w: 192, h: 50, label: "Kit Room", icon: "bag", size: 16 }, () => goTo(this, "Shop"));
     new Button(this, 580, 650, { w: 192, h: 50, label: "How to play", icon: "help", size: 16 }, () => this.howTo());
+    new Button(this, 786, 650, { w: 192, h: 50, label: "Leaderboard", icon: "trophy", size: 16 }, () => goTo(this, "Leaderboard"));
 
     const mute = new Button(this, W - 60, H - 44, { w: 64, h: 44, label: "", icon: s.settings.muted ? "mute" : "sound", size: 20 }, () => {
       s.settings.muted = !s.settings.muted;
