@@ -162,7 +162,8 @@ def render_example(save_path: Path | None = None) -> Path:
     xg = None
     if PRIMARY_MODEL_PATH.exists():
         model = joblib.load(PRIMARY_MODEL_PATH)
-        xg = float(model.predict_proba(shot[FEATURE_COLUMNS].to_frame().T)[:, 1][0])
+        # A one-row slice of the frame keeps each feature's dtype, which XGBoost needs.
+        xg = float(model.predict_proba(goals.iloc[[0]][FEATURE_COLUMNS])[:, 1][0])
 
     plot_shot(shot, xg=xg, save_path=save_path)
     return save_path
