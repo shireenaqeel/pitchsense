@@ -30,6 +30,11 @@ export function moduleProgress(save: SaveData, moduleId: string): { done: number
   return { done: lessons.filter((l) => lessonDone(save, l.id)).length, total: lessons.length };
 }
 
+/** Lessons finished, counting only ones still in the course (a save can outlive a lesson). */
+export function lessonsDone(save: SaveData): number {
+  return LESSONS.filter((l) => lessonDone(save, l.id)).length;
+}
+
 export function academyComplete(save: SaveData): boolean {
-  return LESSONS.every((l) => lessonDone(save, l.id));
+  return lessonsDone(save) === LESSONS.length;
 }

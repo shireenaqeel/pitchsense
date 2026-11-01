@@ -2,7 +2,7 @@ import Phaser from "phaser";
 
 import { CURRICULUM, LESSONS } from "../academy/curriculum";
 import { G } from "../state";
-import { lessonDone, moduleProgress, nextLesson } from "../systems/academy";
+import { lessonDone, lessonsDone, moduleProgress, nextLesson } from "../systems/academy";
 import { icon } from "../ui/icons";
 import { body, C, crisp, H, title, W } from "../ui/theme";
 import { backButton, bar, Button, goTo, panel } from "../ui/widgets";
@@ -42,7 +42,7 @@ export class AcademyScene extends Phaser.Scene {
     this.add.text(W / 2, 40, "ACADEMY", title(34, C.gold)).setOrigin(0.5);
 
     const s = G.save;
-    const done = s.academy.length;
+    const done = lessonsDone(s);
     const next = nextLesson(s);
     if (next) {
       const go = () => goTo(this, "Lesson", { id: next.id });

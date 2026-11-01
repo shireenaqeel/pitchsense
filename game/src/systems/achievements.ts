@@ -1,7 +1,7 @@
 // Achievements: each is a predicate over the save, checked after every round.
 
 import type { IconName } from "../ui/icons";
-import { LESSONS } from "../academy/curriculum";
+import { academyComplete } from "./academy";
 import type { SaveData } from "./save";
 
 export interface Achievement {
@@ -20,7 +20,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "first_lesson", icon: "book", name: "Back to School", desc: "Finish your first Academy lesson",
     check: (s) => s.academy.length >= 1 },
   { id: "literate", icon: "cap", name: "Football Literate", desc: "Finish every Academy lesson",
-    check: (s) => LESSONS.every((l) => s.academy.includes(l.id)) },
+    check: academyComplete },
   { id: "whistle", icon: "whistle", name: "Ref's Eye", desc: "A perfect round of Referee's Eye",
     check: (s) => s.refBest >= 8 },
   { id: "ahead", icon: "next", name: "Ahead of the Play", desc: "Score 600 in What Happens Next?",

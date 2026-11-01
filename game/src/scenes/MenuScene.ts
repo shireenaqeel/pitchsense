@@ -7,7 +7,7 @@ import { levelFromXp, rankFor } from "../systems/progression";
 import { pitchTheme } from "../systems/cosmetics";
 import { worldStars } from "../systems/career";
 import { LESSONS } from "../academy/curriculum";
-import { nextLesson } from "../systems/academy";
+import { academyComplete, lessonsDone, nextLesson } from "../systems/academy";
 import { bandIcon, icon, inline, type IconName } from "../ui/icons";
 import { bar, Button, goTo, panel } from "../ui/widgets";
 import { BAND_COLORS, body, C, crisp, H, hex, title, W } from "../ui/theme";
@@ -38,9 +38,9 @@ export class MenuScene extends Phaser.Scene {
     const maxStars = G.data.career.reduce((a, w) => a + w.levels.length * 3, 0);
     const puzzleStars = Object.values(s.puzzles).reduce((a, b) => a + b, 0);
 
-    const lessons = s.academy.length;
+    const lessons = lessonsDone(s);
     const modes: [IconName, string, string, number, () => void][] = [
-      ["book", "Academy", lessons === LESSONS.length ? `Course complete · ${lessons}/${LESSONS.length} lessons`
+      ["book", "Academy", academyComplete(s) ? `Course complete · ${lessons}/${LESSONS.length} lessons`
         : `New to football? Start here · ${lessons}/${LESSONS.length} lessons`, C.gold, () => goTo(this, "Academy")],
       ["trophy", "World Tour", `Career · ${s.trophies.length}/6 trophies · ★ ${totalStars}/${maxStars}`, C.accent,
         () => goTo(this, "Career")],

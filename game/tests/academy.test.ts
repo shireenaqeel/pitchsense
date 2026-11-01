@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { CONCEPT_NOTES, CURRICULUM, LESSONS, lessonById, type Mark, type Pt, REASON_LESSONS } from "../src/academy/curriculum";
 import { ACHIEVEMENTS, unlockNew } from "../src/systems/achievements";
-import { academyComplete, completeLesson, LESSON_COINS, LESSON_XP, moduleProgress, nextLesson } from "../src/systems/academy";
+import { academyComplete, completeLesson, LESSON_COINS, LESSON_XP, lessonsDone, moduleProgress, nextLesson } from "../src/systems/academy";
 import { defaultSave, mergeSave } from "../src/systems/save";
 
 // The concept tags written by `python -m pitchsense.export_game` (meta.json).
@@ -127,5 +127,14 @@ describe("academy progress", () => {
     const old = { ...defaultSave() } as Record<string, unknown>;
     delete old.academy;
     expect(mergeSave(defaultSave(), old).academy).toEqual([]);
+  });
+});
+
+describe("lesson count", () => {
+  it("ignores lessons a save remembers but the course no longer has", () => {
+    const save = defaultSave();
+    save.academy = [LESSONS[0].id, "a-lesson-that-was-removed"];
+    expect(lessonsDone(save)).toBe(1);
+    expect(academyComplete(save)).toBe(false);
   });
 });
